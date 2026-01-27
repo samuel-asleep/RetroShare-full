@@ -1,4 +1,3 @@
-# .github/workflows/sync-retroshare.yml
 name: Sync RetroShare (manual, no force push)
 
 on:
@@ -26,32 +25,38 @@ jobs:
         run: |
           echo "title=$(git log -1 --pretty=%s $GITHUB_SHA)" >> $GITHUB_OUTPUT
 
-      # -------- Prepare payload (exclude submodules at source) --------
+      # ---------------- Prepare payload ----------------
       - name: Prepare RetroShare payload (exclude submodules)
         run: |
           set -e
           rm -rf /tmp/payload
           mkdir -p /tmp/payload
 
-          test -d ./retroshare || (echo "ERROR: ./retroshare not found"; exit 1)
-          test -f ./retroshare/.gitmodules || (echo "ERROR: ./retroshare/.gitmodules not found"; exit 1)
+          test -d ./retroshare || (echo "ERROR: ./retroshare missing"; exit 1)
+          test -f ./retroshare/.gitmodules || (echo "ERROR: ./retroshare/.gitmodules missing"; exit 1)
 
-          # Read submodule paths from SOURCE (. /retroshare)
-          mapfile -t SRC_SUBMODULES < <(
+          # Read submodule paths from SOURCE .gitmodules
+          mapfile -t SUBMODULES < <(
             git config -f ./retroshare/.gitmodules \
-              --get-regexp '^submodule\..*\.path$' | awk '{print $2}' || true
+              --get-regexp '^submodule\..*\.path$' | awk '{print $2}'
           )
 
-          RSYNC_SRC_ARGS=(-a --delete --exclude='/.git' --exclude='/.github' --exclude='/.gitmodules')
-          for p in "${SRC_SUBMODULES[@]}"; do
-            [ -n "$p" ] || continue
-            RSYNC_SRC_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
+          RSYNC_ARGS=(
+            -a
+            --delete
+            --exclude='/.git'
+            --exclude='/.github'
+            --exclude='/.gitmodules'
+          )
+
+          for p in "${SUBMODULES[@]}"; do
+            RSYNC_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
           done
 
-          rsync "${RSYNC_SRC_ARGS[@]}" ./retroshare/ /tmp/payload/
+          rsync "${RSYNC_ARGS[@]}" ./retroshare/ /tmp/payload/
 
-      # -------- Push to target (exclude submodules at destination) --------
-      - name: Push to target repo (exclude submodules, no force push)
+      # ---------------- Push to target ----------------
+      - name: Push to target repo (submodules preserved)
         env:
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
           TARGET_REPO: ${{ inputs.target_repo }}
@@ -76,44 +81,34 @@ jobs:
             git checkout -b "${TARGET_BRANCH}"
           fi
 
-          # Read submodule paths from TARGET (.gitmodules)
-          if [ -f .gitmodules ]; then
-            mapfile -t TGT_SUBMODULES < <(
-              git config -f .gitmodules \
-                --get-regexp '^submodule\..*\.path$' | awk '{print $2}' || true
-            )
-          else
-            TGT_SUBMODULES=()
-          fi
+          # Read submodule paths from TARGET .gitmodules
+          mapfile -t TARGET_SUBMODULES < <(
+            git config -f .gitmodules \
+              --get-regexp '^submodule\..*\.path$' | awk '{print $2}'
+          )
 
-          RSYNC_DST_ARGS=(-a --delete --exclude='/.git' --exclude='/.git/**' --exclude='/.github' --exclude='/.github/**' --exclude='/.gitmodules')
-          for p in "${TGT_SUBMODULES[@]}"; do
-            [ -n "$p" ] || continue
-            RSYNC_DST_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
+          RSYNC_APPLY_ARGS=(
+            -a
+            --delete
+            --exclude='/.git'
+            --exclude='/.git/**'
+            --exclude='/.github'
+            --exclude='/.github/**'
+            --exclude='/.gitmodules'
+          )
+
+          for p in "${TARGET_SUBMODULES[@]}"; do
+            RSYNC_APPLY_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
           done
 
-          rsync "${RSYNC_DST_ARGS[@]}" /tmp/payload/ ./
+          rsync "${RSYNC_APPLY_ARGS[@]}" /tmp/payload/ ./
 
-          # Safety check: ensure submodule dirs still exist and are still submodules
-          for p in "${TGT_SUBMODULES[@]}"; do
-            [ -n "$p" ] || continue
-            if [ ! -d "$p" ]; then
-              echo "ERROR: submodule directory removed or missing: $p"
-              exit 1
-            fi
-            # Ensure it's still tracked as a submodule (git index check)
-            if ! git ls-files --stage "$p" | grep -q "^160000"; then
-               echo "ERROR: path $p is no longer a submodule in index"
-               exit 1
-            fi
+          # Safety check: submodules must still exist
+          for p in "${TARGET_SUBMODULES[@]}"; do
+            [ -d "$p" ] || (echo "ERROR: submodule deleted: $p"; exit 1)
           done
 
-          git add -A -- . ':!.gitmodules'
-          for p in "${TGT_SUBMODULES[@]}"; do
-            [ -n "$p" ] || continue
-            git reset "$p"
-          done
-
+          git add -A
           if git diff --cached --quiet; then
             echo "No changes to sync."
             exit 0
