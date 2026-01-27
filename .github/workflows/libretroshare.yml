@@ -64,7 +64,7 @@ jobs:
             git checkout -b "${TARGET_BRANCH}"
           fi
 
-          rsync -a --delete --exclude='.git' --exclude='.git/**' /tmp/payload/ ./
+          rsync -a --delete --exclude='.git' --exclude='.git/**' --exclude='.github' --exclude='.github/**' /tmp/payload/ ./
 
           git add -A
           if git diff --cached --quiet; then
