@@ -30,6 +30,7 @@ jobs:
         run: |
           rm -rf /tmp/payload
           mkdir -p /tmp/payload
+          test -d ./libretroshare || (echo "ERROR: Expected ./libretroshare directory not found"; exit 1)
           rsync -a --delete --exclude='.git' --exclude='.github' ./libretroshare/ /tmp/payload/
 
       - name: Push to target repo (no force push)
@@ -63,7 +64,7 @@ jobs:
             git checkout -b "${TARGET_BRANCH}"
           fi
 
-          rsync -a --delete /tmp/payload/ ./
+          rsync -a --delete --exclude='.git' --exclude='.git/**' /tmp/payload/ ./
 
           git add -A
           if git diff --cached --quiet; then
