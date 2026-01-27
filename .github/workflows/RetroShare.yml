@@ -1,4 +1,3 @@
-# .github/workflows/sync-retroshare.yml
 name: Sync RetroShare (manual, no force push)
 
 on:
@@ -26,12 +25,21 @@ jobs:
         run: |
           echo "title=$(git log -1 --pretty=%s $GITHUB_SHA)" >> $GITHUB_OUTPUT
 
-      - name: Prepare retroshare payload
+      - name: Prepare RetroShare payload (repo root layout)
         run: |
+          set -e
           rm -rf /tmp/payload
           mkdir -p /tmp/payload
-          test -d ./retroshare || (echo "ERROR: Expected ./retroshare directory not found"; exit 1)
-          rsync -a --delete --exclude='.git' --exclude='.github' ./retroshare/ /tmp/payload/
+
+          # We expect the monorepo to contain RetroShare content at the repo root.
+          # Exclude the libretroshare folder so we don't push it into the RetroShare repo.
+          rsync -a --delete \
+            --exclude='.git' --exclude='.github' \
+            --exclude='libretroshare/' \
+            ./ /tmp/payload/
+
+          # Sanity check: RetroShare repos should have .gitmodules at root
+          test -f /tmp/payload/.gitmodules || (echo "ERROR: .gitmodules missing in payload; payload likely wrong"; exit 1)
 
       - name: Push to target repo (no force push)
         env:
@@ -64,7 +72,13 @@ jobs:
             git checkout -b "${TARGET_BRANCH}"
           fi
 
-          rsync -a --delete --exclude='.git' --exclude='.git/**' --exclude='.github' --exclude='.github/**' /tmp/payload/ ./
+          # Apply payload safely:
+          # - keep --delete to mirror content
+          # - BUT never touch .git or .github in the target repo
+          rsync -a --delete \
+            --filter='protect .git' --filter='protect .git/**' \
+            --filter='protect .github' --filter='protect .github/**' \
+            /tmp/payload/ ./
 
           git add -A
           if git diff --cached --quiet; then
@@ -73,4 +87,4 @@ jobs:
           fi
 
           git commit -m "${COMMIT_TITLE}"
-          git push origin "${TARGET_BRANCH}"
+          git push origin "${TARGET_BRANCH}" 
