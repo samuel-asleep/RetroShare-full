@@ -77,10 +77,14 @@ jobs:
           fi
 
           # Read submodule paths from TARGET (.gitmodules)
-          mapfile -t TGT_SUBMODULES < <(
-            git config -f .gitmodules \
-              --get-regexp '^submodule\..*\.path$' | awk '{print $2}' || true
-          )
+          if [ -f .gitmodules ]; then
+            mapfile -t TGT_SUBMODULES < <(
+              git config -f .gitmodules \
+                --get-regexp '^submodule\..*\.path$' | awk '{print $2}' || true
+            )
+          else
+            TGT_SUBMODULES=()
+          fi
 
           RSYNC_DST_ARGS=(-a --delete --exclude='/.git' --exclude='/.git/**' --exclude='/.github' --exclude='/.github/**' --exclude='/.gitmodules')
           for p in "${TGT_SUBMODULES[@]}"; do
@@ -90,12 +94,26 @@ jobs:
 
           rsync "${RSYNC_DST_ARGS[@]}" /tmp/payload/ ./
 
-          # Safety check: ensure submodule dirs still exist
+          # Safety check: ensure submodule dirs still exist and are still submodules
           for p in "${TGT_SUBMODULES[@]}"; do
-            [ -d "$p" ] || (echo "ERROR: submodule directory removed: $p"; exit 1)
+            [ -n "$p" ] || continue
+            if [ ! -d "$p" ]; then
+              echo "ERROR: submodule directory removed or missing: $p"
+              exit 1
+            fi
+            # Ensure it's still tracked as a submodule (git index check)
+            if ! git ls-files --stage "$p" | grep -q "^160000"; then
+               echo "ERROR: path $p is no longer a submodule in index"
+               exit 1
+            fi
           done
 
-          git add -A
+          git add -A -- . ':!.gitmodules'
+          for p in "${TGT_SUBMODULES[@]}"; do
+            [ -n "$p" ] || continue
+            git reset "$p"
+          done
+
           if git diff --cached --quiet; then
             echo "No changes to sync."
             exit 0
