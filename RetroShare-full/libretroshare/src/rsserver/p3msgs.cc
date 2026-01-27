@@ -1,0 +1,345 @@
+/*******************************************************************************
+ * libretroshare/src/rsserver: p3msgs.cc                                       *
+ *                                                                             *
+ * libretroshare: retroshare core library                                      *
+ *                                                                             *
+ * Copyright (C) 2004-2006  Robert Fernie <retroshare@lunamutt.com>            *
+ * Copyright (C) 2016-2019  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ *                                                                             *
+ * This program is free software: you can redistribute it and/or modify        *
+ * it under the terms of the GNU Lesser General Public License as              *
+ * published by the Free Software Foundation, either version 3 of the          *
+ * License, or (at your option) any later version.                             *
+ *                                                                             *
+ * This program is distributed in the hope that it will be useful,             *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of              *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the                *
+ * GNU Lesser General Public License for more details.                         *
+ *                                                                             *
+ * You should have received a copy of the GNU Lesser General Public License    *
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
+ *                                                                             *
+ *******************************************************************************/
+#include <iostream>
+#include <tuple>
+
+#include "util/rsdir.h"
+#include "util/rsdebug.h"
+//const int p3facemsgzone = 11453;
+
+#include <sys/time.h>
+#include "util/rstime.h"
+
+#include "retroshare/rstypes.h"
+#include "rsserver/p3msgs.h"
+
+#include "services/p3msgservice.h"
+#include "chat/p3chatservice.h"
+
+#include "pqi/authgpg.h"
+
+using namespace Rs::Mail;
+
+/*extern*/ RsMail* rsMail = nullptr;
+
+/****************************************/
+/****************************************/
+bool p3Msgs::getMessageSummaries(BoxName box,std::list<MsgInfoSummary> &msgList)
+{
+    return mMsgSrv->getMessageSummaries(box,msgList);
+}
+
+
+uint32_t p3Msgs::getDistantMessagingPermissionFlags()
+{
+	return mMsgSrv->getDistantMessagingPermissionFlags();
+}
+
+void p3Msgs::setDistantMessagingPermissionFlags(uint32_t flags)
+{
+	return mMsgSrv->setDistantMessagingPermissionFlags(flags);
+}
+
+
+bool p3Msgs::getMessage(const std::string &mid, MessageInfo &msg)
+{
+	return mMsgSrv->getMessage(mid, msg);
+}
+
+void p3Msgs::getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox)
+{
+	mMsgSrv->getMessageCount(nInbox, nInboxNew, nOutbox, nDraftbox, nSentbox, nTrashbox);
+}
+
+/****************************************/
+/****************************************/
+	/* Message Items */
+bool p3Msgs::MessageSend(MessageInfo &info)
+{
+	return mMsgSrv->MessageSend(info);
+}
+
+uint32_t p3Msgs::sendMail(
+        const RsGxsId from,
+        const std::string& subject,
+        const std::string& body,
+        const std::set<RsGxsId>& to,
+        const std::set<RsGxsId>& cc,
+        const std::set<RsGxsId>& bcc,
+        const std::vector<FileInfo>& attachments,
+        std::set<RsMailIdRecipientIdPair>& trackingIds,
+        std::string& errorMsg )
+{
+	return mMsgSrv->sendMail(
+	            from, subject, body, to, cc, bcc, attachments,
+	            trackingIds, errorMsg );
+}
+
+bool p3Msgs::SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag)
+{
+	return mMsgSrv->SystemMessage(title, message, systemFlag);
+}
+
+bool p3Msgs::MessageToDraft(MessageInfo &info, const std::string &msgParentId)
+{
+	return mMsgSrv->MessageToDraft(info, msgParentId);
+}
+
+bool p3Msgs::MessageToTrash(const std::string &mid, bool bTrash)
+{
+	return mMsgSrv->MessageToTrash(mid, bTrash);
+}
+
+bool p3Msgs::getMsgParentId(const std::string &msgId, std::string &msgParentId)
+{
+	return mMsgSrv->getMsgParentId(msgId, msgParentId);
+}
+
+/****************************************/
+/****************************************/
+bool p3Msgs::MessageDelete(const std::string &mid)
+{
+	//std::cerr << "p3Msgs::MessageDelete() ";
+	//std::cerr << "mid: " << mid << std::endl;
+
+    return mMsgSrv -> deleteMessage(mid);
+}
+
+bool p3Msgs::MessageRead(const std::string &mid, bool unreadByUser)
+{
+	//std::cerr << "p3Msgs::MessageRead() ";
+	//std::cerr << "mid: " << mid << std::endl;
+
+	return mMsgSrv -> markMsgIdRead(mid, unreadByUser);
+}
+
+bool p3Msgs::MessageReplied(const std::string &mid, bool replied)
+{
+	return mMsgSrv->setMsgFlag(mid, replied ? RS_MSG_FLAGS_REPLIED : 0, RS_MSG_FLAGS_REPLIED);
+}
+
+bool p3Msgs::MessageForwarded(const std::string &mid, bool forwarded)
+{
+	return mMsgSrv->setMsgFlag(mid, forwarded ? RS_MSG_FLAGS_FORWARDED : 0, RS_MSG_FLAGS_FORWARDED);
+}
+
+bool p3Msgs::MessageLoadEmbeddedImages(const std::string &mid, bool load)
+{
+	return mMsgSrv->setMsgFlag(mid, load ? RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES : 0, RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES);
+}
+
+bool 	p3Msgs::getMessageTagTypes(MsgTagType& tags)
+{
+	return mMsgSrv->getMessageTagTypes(tags);
+}
+
+bool p3Msgs::MessageStar(const std::string &mid, bool star)
+{
+	return mMsgSrv->setMsgFlag(mid, star ? RS_MSG_FLAGS_STAR : 0, RS_MSG_FLAGS_STAR);
+}
+
+bool p3Msgs::MessageJunk(const std::string &mid, bool junk)
+{
+	return mMsgSrv->setMsgFlag(mid, junk ? RS_MSG_FLAGS_SPAM : 0, RS_MSG_FLAGS_SPAM);
+}
+
+bool  p3Msgs::setMessageTagType(uint32_t tagId, std::string& text, uint32_t rgb_color)
+{
+	return mMsgSrv->setMessageTagType(tagId, text, rgb_color);
+}
+
+bool    p3Msgs::removeMessageTagType(uint32_t tagId)
+{
+	return mMsgSrv->removeMessageTagType(tagId);
+}
+
+bool 	p3Msgs::getMessageTag(const std::string &msgId, MsgTagInfo& info)
+{
+	return mMsgSrv->getMessageTag(msgId, info);
+}
+
+bool 	p3Msgs::setMessageTag(const std::string &msgId, uint32_t tagId, bool set)
+{
+	return mMsgSrv->setMessageTag(msgId, tagId, set);
+}
+
+bool    p3Msgs::resetMessageStandardTagTypes(MsgTagType& tags)
+{
+	return mMsgSrv->resetMessageStandardTagTypes(tags);
+}
+
+/****************************************/
+/****************************************/
+bool p3Msgs::sendChat(ChatId destination, std::string msg)
+{
+	return mChatSrv->sendChat(destination, msg);
+}
+
+uint32_t p3Msgs::getMaxMessageSecuritySize(int type)
+{
+	return mChatSrv->getMaxMessageSecuritySize(type);
+}
+
+void p3Msgs::sendStatusString(const ChatId& id, const std::string& status_string)
+{
+    mChatSrv->sendStatusString(id, status_string);
+}
+
+void p3Msgs::clearChatLobby(const ChatId &id)
+{
+	mChatSrv->clearChatLobby(id);
+}
+
+void p3Msgs::getOwnAvatarData(unsigned char *& data,int& size)
+{
+	mChatSrv->getOwnAvatarJpegData(data,size) ;
+}
+
+void p3Msgs::setOwnAvatarData(const unsigned char *data,int size)
+{
+	mChatSrv->setOwnNodeAvatarJpegData(data,size) ;
+}
+
+void p3Msgs::getAvatarData(const RsPeerId& pid,unsigned char *& data,int& size)
+{
+	mChatSrv->getAvatarJpegData(pid,data,size) ;
+}
+
+std::string p3Msgs::getCustomStateString(const RsPeerId& peer_id)
+{
+	return mChatSrv->getCustomStateString(peer_id) ;
+}
+
+std::string p3Msgs::getCustomStateString()
+{
+	return mChatSrv->getOwnCustomStateString() ;
+}
+
+void p3Msgs::setCustomStateString(const std::string& state_string)
+{
+	mChatSrv->setOwnCustomStateString(state_string) ;
+}
+
+bool p3Msgs::getChatLobbyInfo(const ChatLobbyId& id,ChatLobbyInfo& linfo)
+{
+    return mChatSrv->getChatLobbyInfo(id,linfo) ;
+}
+void p3Msgs::getChatLobbyList(std::list<ChatLobbyId>& lids)
+{
+    mChatSrv->getChatLobbyList(lids) ;
+}
+void p3Msgs::invitePeerToLobby(const ChatLobbyId& lobby_id, const RsPeerId& peer_id)
+{
+	mChatSrv->invitePeerToLobby(lobby_id,peer_id) ;
+}
+void p3Msgs::sendLobbyStatusPeerLeaving(const ChatLobbyId& lobby_id)
+{
+	mChatSrv->sendLobbyStatusPeerLeaving(lobby_id) ;
+}
+void p3Msgs::unsubscribeChatLobby(const ChatLobbyId& lobby_id)
+{
+	mChatSrv->unsubscribeChatLobby(lobby_id) ;
+}
+bool p3Msgs::setDefaultIdentityForChatLobby(const RsGxsId& nick)
+{
+    return mChatSrv->setDefaultIdentityForChatLobby(nick) ;
+}
+void p3Msgs::getDefaultIdentityForChatLobby(RsGxsId& nick_name)
+{
+    mChatSrv->getDefaultIdentityForChatLobby(nick_name) ;
+}
+
+bool p3Msgs::setIdentityForChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& nick)
+{
+    return mChatSrv->setIdentityForChatLobby(lobby_id,nick) ;
+}
+bool p3Msgs::getIdentityForChatLobby(const ChatLobbyId& lobby_id,RsGxsId& nick_name)
+{
+    return mChatSrv->getIdentityForChatLobby(lobby_id,nick_name) ;
+}
+
+bool p3Msgs::joinVisibleChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& own_id)
+{
+    return mChatSrv->joinVisibleChatLobby(lobby_id,own_id) ;
+}
+
+void p3Msgs::getListOfNearbyChatLobbies(std::vector<VisibleChatLobbyRecord>& public_lobbies)
+{
+	mChatSrv->getListOfNearbyChatLobbies(public_lobbies) ;
+}
+
+ChatLobbyId p3Msgs::createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags privacy_type)
+{
+    return mChatSrv->createChatLobby(lobby_name,lobby_identity,lobby_topic,invited_friends,privacy_type) ;
+}
+
+void p3Msgs::setLobbyAutoSubscribe(const ChatLobbyId& lobby_id, const bool autoSubscribe)
+{
+    mChatSrv->setLobbyAutoSubscribe(lobby_id, autoSubscribe);
+}
+
+bool p3Msgs::getLobbyAutoSubscribe(const ChatLobbyId& lobby_id)
+{
+    return mChatSrv->getLobbyAutoSubscribe(lobby_id);
+}
+
+
+bool p3Msgs::acceptLobbyInvite(const ChatLobbyId& id,const RsGxsId& gxs_id)
+{
+    return mChatSrv->acceptLobbyInvite(id,gxs_id) ;
+}
+bool p3Msgs::denyLobbyInvite(const ChatLobbyId& id)
+{
+    return mChatSrv->denyLobbyInvite(id) ;
+}
+void p3Msgs::getPendingChatLobbyInvites(std::list<ChatLobbyInvite>& invites)
+{
+	mChatSrv->getPendingChatLobbyInvites(invites) ;
+}
+bool p3Msgs::initiateDistantChatConnexion(
+        const RsGxsId& to_gxs_id, const RsGxsId& from_gxs_id,
+        DistantChatPeerId& pid, uint32_t& error_code, bool notify )
+{
+	return mChatSrv->initiateDistantChatConnexion( to_gxs_id, from_gxs_id, pid, error_code, notify );
+}
+bool p3Msgs::getDistantChatStatus(const DistantChatPeerId& pid,DistantChatPeerInfo& info)
+{
+    return mChatSrv->getDistantChatStatus(pid,info) ;
+}
+bool p3Msgs::closeDistantChatConnexion(const DistantChatPeerId &pid)
+{
+	return mChatSrv->closeDistantChatConnexion(pid) ;
+}
+bool p3Msgs::setDistantChatPermissionFlags(uint32_t flags)
+{
+	return mChatSrv->setDistantChatPermissionFlags(flags) ;
+}
+uint32_t p3Msgs::getDistantChatPermissionFlags()
+{
+	return mChatSrv->getDistantChatPermissionFlags() ;
+}
+
+Rs::Mail::MessageInfo::~MessageInfo() = default;
+MsgInfoSummary::~MsgInfoSummary() = default;
+
+

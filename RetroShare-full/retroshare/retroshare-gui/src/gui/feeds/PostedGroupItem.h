@@ -1,0 +1,72 @@
+/*******************************************************************************
+ * gui/feeds/PostedGroupItem.h                                                 *
+ *                                                                             *
+ * Copyright (c) 2014, Retroshare Team <retroshare.project@gmail.com>          *
+ *                                                                             *
+ * This program is free software: you can redistribute it and/or modify        *
+ * it under the terms of the GNU Affero General Public License as              *
+ * published by the Free Software Foundation, either version 3 of the          *
+ * License, or (at your option) any later version.                             *
+ *                                                                             *
+ * This program is distributed in the hope that it will be useful,             *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of              *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the                *
+ * GNU Affero General Public License for more details.                         *
+ *                                                                             *
+ * You should have received a copy of the GNU Affero General Public License    *
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
+ *                                                                             *
+ *******************************************************************************/
+
+#ifndef _POSTEDGROUPITEM_H
+#define _POSTEDGROUPITEM_H
+
+#include <retroshare/rsposted.h>
+#include "gui/feeds/GxsGroupFeedItem.h"
+
+namespace Ui {
+class PostedGroupItem;
+}
+ 
+class FeedHolder;
+
+class PostedGroupItem : public GxsGroupFeedItem
+{
+	Q_OBJECT
+
+public:
+	/** Default Constructor */
+	PostedGroupItem(FeedHolder *feedHolder, uint32_t feedId, const RsGxsGroupId &groupId, bool isHome, bool autoUpdate);
+    virtual ~PostedGroupItem() override;
+
+    uint64_t uniqueIdentifier() const override { return hash_64bits("PostedGroupItem " + groupId().toStdString()) ; }
+
+protected:
+    virtual void paintEvent(QPaintEvent *e) override;
+
+	/* FeedItem */
+    virtual void doExpand(bool open) override;
+
+	/* GxsGroupFeedItem */
+    virtual QString groupName() override;
+	virtual void loadGroup() override;
+    virtual RetroShareLink::enumType getLinkType() override { return RetroShareLink::TYPE_UNKNOWN; }
+
+private slots:
+	void toggle() override;
+	void subscribePosted();
+
+private:
+	void fill();
+	void setup();
+
+private:
+	RsPostedGroup mGroup;
+    bool mLoadingGroup;
+    LoadingStatus mLoadingStatus;
+
+	/** Qt Designer generated object */
+	Ui::PostedGroupItem *ui;
+};
+
+#endif
