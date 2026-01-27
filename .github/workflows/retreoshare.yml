@@ -26,40 +26,32 @@ jobs:
         run: |
           echo "title=$(git log -1 --pretty=%s $GITHUB_SHA)" >> $GITHUB_OUTPUT
 
-      - name: Prepare RetroShare payload (ignore submodules completely)
+      # -------- Prepare payload (exclude submodules at source) --------
+      - name: Prepare RetroShare payload (exclude submodules)
         run: |
           set -e
-
           rm -rf /tmp/payload
           mkdir -p /tmp/payload
 
-          test -d ./retroshare || (echo "ERROR: Expected ./retroshare directory not found"; exit 1)
-          test -f ./retroshare/.gitmodules || (echo "ERROR: Expected ./retroshare/.gitmodules not found"; exit 1)
+          test -d ./retroshare || (echo "ERROR: ./retroshare not found"; exit 1)
+          test -f ./retroshare/.gitmodules || (echo "ERROR: ./retroshare/.gitmodules not found"; exit 1)
 
-          echo "Detecting submodule paths from ./retroshare/.gitmodules..."
-          mapfile -t SUBMODULE_PATHS < <(git config -f ./retroshare/.gitmodules --get-regexp path | awk '{print $2}' || true)
-
-          RSYNC_ARGS=(
-            -a
-            --delete
-            --exclude=.git
-            --exclude=.github
-            --exclude=.gitmodules
+          # Read submodule paths from SOURCE (. /retroshare)
+          mapfile -t SRC_SUBMODULES < <(
+            git config -f ./retroshare/.gitmodules \
+              --get-regexp '^submodule\..*\.path$' | awk '{print $2}' || true
           )
 
-          for p in "${SUBMODULE_PATHS[@]}"; do
+          RSYNC_SRC_ARGS=(-a --delete --exclude='/.git' --exclude='/.github' --exclude='/.gitmodules')
+          for p in "${SRC_SUBMODULES[@]}"; do
             [ -n "$p" ] || continue
-            # Exclude submodule working tree paths from payload entirely
-            RSYNC_ARGS+=( "--exclude=${p}/" )
+            RSYNC_SRC_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
           done
 
-          echo "Rsyncing ./retroshare -> /tmp/payload (submodules excluded)..."
-          rsync "${RSYNC_ARGS[@]}" ./retroshare/ /tmp/payload/
+          rsync "${RSYNC_SRC_ARGS[@]}" ./retroshare/ /tmp/payload/
 
-          # Sanity: payload must not include .gitmodules nor submodule dirs
-          test ! -f /tmp/payload/.gitmodules || (echo "ERROR: .gitmodules should be excluded but is present in payload"; exit 1)
-
-      - name: Push to target repo (no force push, ignore submodules completely)
+      # -------- Push to target (exclude submodules at destination) --------
+      - name: Push to target repo (exclude submodules, no force push)
         env:
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
           TARGET_REPO: ${{ inputs.target_repo }}
@@ -67,18 +59,12 @@ jobs:
           COMMIT_TITLE: ${{ steps.msg.outputs.title }}
         run: |
           set -e
-
-          test -n "${PUSH_TOKEN}" || (echo "ERROR: PUSH_TOKEN secret is empty/missing"; exit 1)
-          test -n "${TARGET_REPO}" || (echo "ERROR: target_repo input is empty"; exit 1)
-          test -n "${TARGET_BRANCH}" || (echo "ERROR: RETROSHARE_TARGET_BRANCH secret is empty/missing"; exit 1)
+          test -n "${PUSH_TOKEN}" || (echo "ERROR: PUSH_TOKEN missing"; exit 1)
+          test -n "${TARGET_BRANCH}" || (echo "ERROR: RETROSHARE_TARGET_BRANCH missing"; exit 1)
 
           rm -rf /tmp/target
           git clone "https://x-access-token:${PUSH_TOKEN}@github.com/${TARGET_REPO}.git" /tmp/target
           cd /tmp/target
-
-          echo "PWD: $(pwd)"
-          ls -la
-          test -d .git || (echo "ERROR: .git not found in $(pwd)"; exit 1)
 
           git config user.name "samuel-asleep"
           git config user.email "benneu40@gmail.com"
@@ -90,30 +76,24 @@ jobs:
             git checkout -b "${TARGET_BRANCH}"
           fi
 
-          echo "Detecting submodule paths from target .gitmodules (to protect them)..."
-          mapfile -t TARGET_SUBMODULE_PATHS < <(git config -f .gitmodules --get-regexp path | awk '{print $2}' || true)
-
-          # Apply payload safely:
-          # - mirror content with --delete
-          # - but NEVER touch: .git, .github, .gitmodules, or any submodule directories
-          RSYNC_APPLY_ARGS=(
-            -a
-            --delete
-            "--filter=protect .git"
-            "--filter=protect .git/**"
-            "--filter=protect .github"
-            "--filter=protect .github/**"
-            "--filter=protect .gitmodules"
+          # Read submodule paths from TARGET (.gitmodules)
+          mapfile -t TGT_SUBMODULES < <(
+            git config -f .gitmodules \
+              --get-regexp '^submodule\..*\.path$' | awk '{print $2}' || true
           )
 
-          for p in "${TARGET_SUBMODULE_PATHS[@]}"; do
+          RSYNC_DST_ARGS=(-a --delete --exclude='/.git' --exclude='/.git/**' --exclude='/.github' --exclude='/.github/**' --exclude='/.gitmodules')
+          for p in "${TGT_SUBMODULES[@]}"; do
             [ -n "$p" ] || continue
-            RSYNC_APPLY_ARGS+=( "--filter=protect ${p}" )
-            RSYNC_APPLY_ARGS+=( "--filter=protect ${p}/**" )
+            RSYNC_DST_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
           done
 
-          echo "Applying payload (/tmp/payload) -> target repo root (submodules protected)..."
-          rsync "${RSYNC_APPLY_ARGS[@]}" /tmp/payload/ ./
+          rsync "${RSYNC_DST_ARGS[@]}" /tmp/payload/ ./
+
+          # Safety check: ensure submodule dirs still exist
+          for p in "${TGT_SUBMODULES[@]}"; do
+            [ -d "$p" ] || (echo "ERROR: submodule directory removed: $p"; exit 1)
+          done
 
           git add -A
           if git diff --cached --quiet; then
@@ -122,4 +102,4 @@ jobs:
           fi
 
           git commit -m "${COMMIT_TITLE}"
-          git push origin "${TARGET_BRANCH}" 
+          git push origin "${TARGET_BRANCH}"
