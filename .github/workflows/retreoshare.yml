@@ -15,10 +15,11 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout monorepo
+      - name: Checkout monorepo (without submodules)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: false
 
       - name: Read monorepo commit title
         id: msg
@@ -26,37 +27,25 @@ jobs:
           echo "title=$(git log -1 --pretty=%s $GITHUB_SHA)" >> $GITHUB_OUTPUT
 
       # ---------------- Prepare payload ----------------
-      - name: Prepare RetroShare payload (exclude submodules)
+      - name: Prepare RetroShare payload
         run: |
           set -e
           rm -rf /tmp/payload
           mkdir -p /tmp/payload
 
           test -d ./retroshare || (echo "ERROR: ./retroshare missing"; exit 1)
-          test -f ./retroshare/.gitmodules || (echo "ERROR: ./retroshare/.gitmodules missing"; exit 1)
 
-          # Read submodule paths from SOURCE .gitmodules
-          mapfile -t SUBMODULES < <(
-            git config -f ./retroshare/.gitmodules \
-              --get-regexp '^submodule\..*\.path$' | awk '{print $2}'
-          )
-
-          RSYNC_ARGS=(
-            -a
-            --delete
-            --exclude='/.git'
-            --exclude='/.github'
-            --exclude='/.gitmodules'
-          )
-
-          for p in "${SUBMODULES[@]}"; do
-            RSYNC_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
-          done
-
-          rsync "${RSYNC_ARGS[@]}" ./retroshare/ /tmp/payload/
+          # Simple copy - submodules won't exist since we didn't check them out
+          rsync -a \
+            --exclude='/.git' \
+            --exclude='/.git/**' \
+            --exclude='/.github' \
+            --exclude='/.github/**' \
+            --exclude='/.gitmodules' \
+            ./retroshare/ /tmp/payload/
 
       # ---------------- Push to target ----------------
-      - name: Push to target repo (submodules preserved)
+      - name: Push to target repo (preserve submodules)
         env:
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
           TARGET_REPO: ${{ inputs.target_repo }}
@@ -81,13 +70,8 @@ jobs:
             git checkout -b "${TARGET_BRANCH}"
           fi
 
-          # Read submodule paths from TARGET .gitmodules
-          mapfile -t TARGET_SUBMODULES < <(
-            git config -f .gitmodules \
-              --get-regexp '^submodule\..*\.path$' | awk '{print $2}'
-          )
-
-          RSYNC_APPLY_ARGS=(
+          # Build exclusion list from target's .gitmodules
+          RSYNC_ARGS=(
             -a
             --delete
             --exclude='/.git'
@@ -97,16 +81,33 @@ jobs:
             --exclude='/.gitmodules'
           )
 
-          for p in "${TARGET_SUBMODULES[@]}"; do
-            RSYNC_APPLY_ARGS+=( "--exclude=/${p}/" "--exclude=/${p}/**" )
-          done
+          # Read and exclude ALL submodule paths from target repo
+          if [ -f .gitmodules ]; then
+            echo "Found .gitmodules in target, excluding submodule paths..."
+            while IFS= read -r submodule_path; do
+              if [ -n "$submodule_path" ]; then
+                echo "  Excluding: $submodule_path"
+                # Exclude both with and without leading slash for safety
+                RSYNC_ARGS+=("--exclude=$submodule_path")
+                RSYNC_ARGS+=("--exclude=/$submodule_path")
+              fi
+            done < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
+          fi
 
-          rsync "${RSYNC_APPLY_ARGS[@]}" /tmp/payload/ ./
+          # Perform the sync
+          rsync "${RSYNC_ARGS[@]}" /tmp/payload/ ./
 
-          # Safety check: submodules must still exist
-          for p in "${TARGET_SUBMODULES[@]}"; do
-            [ -d "$p" ] || (echo "ERROR: submodule deleted: $p"; exit 1)
-          done
+          # Verify submodules still exist
+          if [ -f .gitmodules ]; then
+            echo "Verifying submodules were preserved..."
+            while IFS= read -r submodule_path; do
+              if [ -n "$submodule_path" ] && [ ! -e "$submodule_path" ]; then
+                echo "ERROR: Submodule was deleted: $submodule_path"
+                exit 1
+              fi
+            done < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
+            echo "All submodules preserved ✓"
+          fi
 
           git add -A
           if git diff --cached --quiet; then
@@ -115,4 +116,4 @@ jobs:
           fi
 
           git commit -m "${COMMIT_TITLE}"
-          git push origin "${TARGET_BRANCH}"
+          git push origin "${TARGET_BRANCH}" 
