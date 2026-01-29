@@ -30,8 +30,8 @@ jobs:
       - name: Prepare RetroShare payload
         run: |
           set -e
-          rm -rf /tmp/payload
-          mkdir -p /tmp/payload
+          PAYLOAD_DIR="$(mktemp -d)"
+          echo "PAYLOAD_DIR=${PAYLOAD_DIR}" >> "$GITHUB_ENV"
 
           test -d ./retroshare || (echo "ERROR: ./retroshare missing"; exit 1)
 
@@ -42,7 +42,7 @@ jobs:
             --exclude='/.github' \
             --exclude='/.github/**' \
             --exclude='/.gitmodules' \
-            ./retroshare/ /tmp/payload/
+            ./retroshare/ "${PAYLOAD_DIR}/"
 
       # ---------------- Push to target ----------------
       - name: Push to target repo (preserve submodules)
@@ -56,9 +56,9 @@ jobs:
           test -n "${PUSH_TOKEN}" || (echo "ERROR: PUSH_TOKEN missing"; exit 1)
           test -n "${TARGET_BRANCH}" || (echo "ERROR: RETROSHARE_TARGET_BRANCH missing"; exit 1)
 
-          rm -rf /tmp/target
-          git clone "https://x-access-token:${PUSH_TOKEN}@github.com/${TARGET_REPO}.git" /tmp/target
-          cd /tmp/target
+          TARGET_DIR="$(mktemp -d)"
+          git clone "https://x-access-token:${PUSH_TOKEN}@github.com/${TARGET_REPO}.git" "${TARGET_DIR}"
+          cd "${TARGET_DIR}"
 
           git config user.name "samuel-asleep"
           git config user.email "benneu40@gmail.com"
@@ -73,7 +73,6 @@ jobs:
           # Build exclusion list from target's .gitmodules
           RSYNC_ARGS=(
             -a
-            --delete
             --exclude='/.git'
             --exclude='/.git/**'
             --exclude='/.github'
@@ -95,7 +94,7 @@ jobs:
           fi
 
           # Perform the sync
-          rsync "${RSYNC_ARGS[@]}" /tmp/payload/ ./
+          rsync "${RSYNC_ARGS[@]}" "${PAYLOAD_DIR}/" ./
 
           # Verify submodules still exist
           if [ -f .gitmodules ]; then
