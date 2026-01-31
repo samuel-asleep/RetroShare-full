@@ -541,7 +541,7 @@ void WikiDialog::loadPages(const RsGxsGroupId &groupId)
 		uint32_t token;
 		RsTokReqOptions opts;
 		opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
-		opts.mOptions = RS_TOKREQOPT_MSG_LATEST; // We want the latest version of each page.
+		opts.mOptions = (RS_TOKREQOPT_MSG_LATEST | RS_TOKREQOPT_MSG_THREAD); // Latest thread heads.
 
 		std::list<RsGxsGroupId> groupIds;
 		groupIds.push_back(groupId);
@@ -577,6 +577,17 @@ void WikiDialog::loadPages(const RsGxsGroupId &groupId)
 
 			for (auto& page : snapshots)
 			{
+#ifdef WIKI_DEBUG
+				if (!page.mMeta.mParentId.isNull())
+				{
+					std::cerr << "WikiDialog::loadPages() Skipping child edit: "
+						<< page.mMeta.mMsgId << std::endl;
+				}
+#endif
+				if (!page.mMeta.mParentId.isNull())
+				{
+					continue;
+				}
 #ifdef WIKI_DEBUG
 				std::cerr << "WikiDialog::loadPages() PageId: " << page.mMeta.mMsgId
 					<< " Page: " << page.mMeta.mMsgName << std::endl;
