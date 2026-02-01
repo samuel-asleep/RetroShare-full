@@ -73,7 +73,8 @@ enum class RsWikiEventCode : uint8_t
 	NEW_SNAPSHOT               = 0x03, // First-time page creation
 	NEW_COLLECTION             = 0x04, // New wiki group creation
 	SUBSCRIBE_STATUS_CHANGED   = 0x05, // User subscribed/unsubscribed
-	NEW_COMMENT                = 0x06  // New comment added
+	NEW_COMMENT                = 0x06, // New comment added
+	READ_STATUS_CHANGED        = 0x07  // Read/unread status changed
 };
 
 /** Specific Wiki Event for UI updates */
@@ -85,12 +86,14 @@ struct RsGxsWikiEvent : public RsEvent
 
 	RsWikiEventCode mWikiEventCode;
 	RsGxsGroupId mWikiGroupId;
+	RsGxsMessageId mWikiMsgId;
 
 	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx) override
 	{
 		RsEvent::serial_process(j, ctx);
 		RS_SERIAL_PROCESS(mWikiEventCode);
 		RS_SERIAL_PROCESS(mWikiGroupId);
+		RS_SERIAL_PROCESS(mWikiMsgId);
 	}
 };
 
