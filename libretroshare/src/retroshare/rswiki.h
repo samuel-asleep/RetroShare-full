@@ -210,6 +210,14 @@ public:
 	 * new/unread messages across all Wiki collections.
 	 */
 	virtual bool getWikiStatistics(GxsServiceStatistic& stats) = 0;
+
+	/**
+	 * @brief Update read status for a wiki snapshot/comment
+	 * @param token Output token for async processing
+	 * @param msgId Group/message identifier pair to update
+	 * @param read True to mark as read, false to mark as unread
+	 */
+	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 };
 
 #endif

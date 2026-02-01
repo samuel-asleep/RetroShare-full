@@ -563,6 +563,14 @@ bool p3Wiki::getWikiStatistics(GxsServiceStatistic& stats)
 	return getServiceStatisticsBlocking(stats);
 }
 
+void p3Wiki::setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read)
+{
+	const uint32_t mask = GXS_SERV::GXS_MSG_STATUS_GUI_NEW | GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+	const uint32_t status = read ? 0 : GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+
+	setMsgStatusFlags(token, msgId, status, mask);
+}
+
 /* Stream operators for debugging */
 
 std::ostream &operator<<(std::ostream &out, const RsWikiCollection &group)
