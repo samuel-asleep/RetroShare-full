@@ -144,7 +144,7 @@ public:
     static void showWindow(MainPage *page);
     /** Set focus to the given page. */
     static bool activatePage (Page page);
-    static bool setStackWidgetCurrentForTest(QStackedWidget *stack, QWidget *page)
+    static bool setCurrentPageForTest(QStackedWidget *stack, QWidget *page)
     {
 #ifdef RS_USE_WIKI
         if(!stack || !page)

@@ -1050,7 +1050,7 @@ void SetForegroundWindowInternal(HWND hWnd)
 			 break ;
 		 case Network:
 			 _instance->ui->stackPages->setCurrentPage( _instance->friendsDialog );
-			_instance->friendsDialog->activatePage(FriendsDialog::NetworkTab) ;
+			_instance->friendsDialog->activatePage(FriendsDialog::NetworkTab);
 			 break;
 		 case Friends:
 			 _instance->ui->stackPages->setCurrentPage( _instance->friendsDialog );
