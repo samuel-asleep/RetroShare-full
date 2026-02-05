@@ -459,6 +459,7 @@ void MainWindow::initStackedPage()
 #ifdef RS_USE_WIKI
   WikiDialog *wikiDialog = NULL;
   addPage(wikiDialog = new WikiDialog(ui->stackPages), grp, &notify);
+  registerPageForEnum(Wiki, wikiDialog);
 #endif
 
 #ifdef RS_USE_WIRE
@@ -574,6 +575,12 @@ void MainWindow::addAction(QAction *action, FunctionType actionFunction, const c
     ui->listWidget->addItem(item) ;
 
     if (slot) _functionList[slot] = actionFunction;
+}
+
+void MainWindow::registerPageForEnum(Page pageType, MainPage* pageInstance) 
+{
+    if (pageInstance)
+        mPageRegistry[pageType] = pageInstance;
 }
 
 /** Add the given page to the stackPage and list. */
@@ -1080,6 +1087,12 @@ void SetForegroundWindowInternal(HWND hWnd)
 		case Posted:
 			_instance->ui->stackPages->setCurrentPage( _instance->postedDialog );
 			return true ;
+		case Wiki:
+			if (_instance->mPageRegistry.contains(Wiki)) {
+				_instance->ui->stackPages->setCurrentPage(_instance->mPageRegistry[Wiki]);
+				return true;
+			}
+			break;
 		 default:
 			 std::cerr << "Show page called on value that is not handled yet. Please code it! (value = " << page << ")" << std::endl;
 	 }
@@ -1164,6 +1177,8 @@ void SetForegroundWindowInternal(HWND hWnd)
 			return _instance->postedDialog;
         case Home:
             return _instance->homePage;
+		case Wiki:
+			return _instance->mPageRegistry.value(Wiki, nullptr);
     }
 
    return NULL;
