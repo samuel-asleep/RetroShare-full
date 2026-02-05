@@ -23,9 +23,11 @@
 #include <QIcon>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QPixmap>
 #include <QStatusBar>
 #include <QString>
+#include <QThread>
 #include <QUrl>
 #include <QtDebug>
 #include <QMenuBar>
@@ -583,6 +585,25 @@ void MainWindow::registerPageForEnum(Page pageType, MainPage* pageInstance)
         mPageRegistry[pageType] = pageInstance;
 }
 
+MainPage* MainWindow::pageForEnum(Page pageType)
+{
+	MainPage* pageInstance = mPageRegistry.value(pageType, nullptr);
+#ifdef RS_USE_WIKI
+	if (!pageInstance && pageType == Wiki) {
+		for (MainPage* candidate : ui->stackPages->pages()) {
+			if (qobject_cast<WikiDialog*>(candidate)) {
+				pageInstance = candidate;
+				break;
+			}
+		}
+		if (pageInstance) {
+			registerPageForEnum(pageType, pageInstance);
+		}
+	}
+#endif
+	return pageInstance;
+}
+
 /** Add the given page to the stackPage and list. */
 void MainWindow::addPage(MainPage *page, QActionGroup *grp, QList<QPair<MainPage*, QPair<QAction*, QListWidgetItem*> > > *notify)
 {
@@ -1047,6 +1068,15 @@ void SetForegroundWindowInternal(HWND hWnd)
         return false;
     }
 
+	if (QThread::currentThread() != _instance->thread()) {
+		const Page queuedPage = page;
+		QMetaObject::invokeMethod(
+			_instance,
+			[queuedPage]() { MainWindow::activatePage(queuedPage); },
+			Qt::QueuedConnection);
+		return true;
+	}
+
 	 switch (page) {
 		 case Search:
 			 _instance->ui->stackPages->setCurrentPage( _instance->transfersDialog );
@@ -1088,7 +1118,7 @@ void SetForegroundWindowInternal(HWND hWnd)
 			_instance->ui->stackPages->setCurrentPage( _instance->postedDialog );
 			return true ;
 		case Wiki: {
-			MainPage* wikiPage = _instance->mPageRegistry.value(Wiki, nullptr);
+			MainPage* wikiPage = _instance->pageForEnum(Wiki);
 			if (wikiPage) {
 				_instance->ui->stackPages->setCurrentPage(wikiPage);
 				return true;
@@ -1180,7 +1210,7 @@ void SetForegroundWindowInternal(HWND hWnd)
         case Home:
             return _instance->homePage;
 		case Wiki:
-			return _instance->mPageRegistry.value(Wiki, nullptr);
+			return _instance->pageForEnum(Wiki);
     }
 
    return NULL;
