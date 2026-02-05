@@ -31,7 +31,7 @@
 
 #include "gui/MainWindow.h"
 
-TEST(WikiNotifyActivation, SwitchesToWikiPage)
+TEST(WikiNotifyActivation, SetsWikiWidgetOnStack)
 {
 	int argc = 0;
 	char** argv = nullptr;
@@ -41,7 +41,7 @@ TEST(WikiNotifyActivation, SwitchesToWikiPage)
 	QWidget wikiPage;
 	stack.addWidget(&wikiPage);
 
-	EXPECT_TRUE(MainWindow::setCurrentPageForTest(&stack, &wikiPage));
+	EXPECT_TRUE(MainWindow::activateWikiPageForTest(&stack, &wikiPage));
 	EXPECT_EQ(&wikiPage, stack.currentWidget());
 }
 
