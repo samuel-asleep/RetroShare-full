@@ -75,8 +75,6 @@ jobs:
             -a
             --exclude='/.git'
             --exclude='/.git/**'
-            --exclude='/.github'
-            --exclude='/.github/**'
             --exclude='/.gitmodules'
           )
 
