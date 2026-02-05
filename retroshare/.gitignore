@@ -37,5 +37,4 @@ Thumbs.db
 /*.tar.?z
 
 # Build artifacts
-build/
 .vscode/
