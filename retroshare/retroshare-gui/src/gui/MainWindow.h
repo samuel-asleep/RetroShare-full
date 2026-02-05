@@ -146,17 +146,11 @@ public:
     static bool activatePage (Page page);
     static bool setCurrentPageForTest(QStackedWidget *stack, QWidget *page)
     {
-#ifdef RS_USE_WIKI
         if(!stack || !page)
             return false;
 
         stack->setCurrentWidget(page);
         return stack->currentWidget() == page;
-#else
-        Q_UNUSED(stack);
-        Q_UNUSED(page);
-        return false;
-#endif
     }
     static Page getActivatePage ();
 
