@@ -1087,12 +1087,14 @@ void SetForegroundWindowInternal(HWND hWnd)
 		case Posted:
 			_instance->ui->stackPages->setCurrentPage( _instance->postedDialog );
 			return true ;
-		case Wiki:
-			if (_instance->mPageRegistry.contains(Wiki)) {
-				_instance->ui->stackPages->setCurrentPage(_instance->mPageRegistry[Wiki]);
+		case Wiki: {
+			MainPage* wikiPage = _instance->mPageRegistry.value(Wiki, nullptr);
+			if (wikiPage) {
+				_instance->ui->stackPages->setCurrentPage(wikiPage);
 				return true;
 			}
 			break;
+		}
 		 default:
 			 std::cerr << "Show page called on value that is not handled yet. Please code it! (value = " << page << ")" << std::endl;
 	 }
