@@ -22,7 +22,6 @@
 #define _MainWindow_H
 
 #include <QLineEdit>
-#include <QStackedWidget>
 #include <QSystemTrayIcon>
 #include <set>
 
@@ -60,7 +59,6 @@ class FriendsDialog;
 class IdDialog;
 class ChatLobbyWidget;
 class SettingsPage ;
-class WikiDialog;
 class ChatDialog;
 class NetworkDialog;
 class SearchDialog;
@@ -144,7 +142,6 @@ public:
     static void showWindow(MainPage *page);
     /** Set focus to the given page. */
     static bool activatePage (Page page);
-    static bool activateWikiPage(QStackedWidget *stack, QWidget *wikiPage);
     static Page getActivatePage ();
 
     /** get page */
@@ -171,9 +168,6 @@ public:
 	 GxsChannelDialog  *gxschannelDialog ;
 	 GxsForumsDialog   *gxsforumDialog ;
 	 PostedDialog      *postedDialog;
-#ifdef RS_USE_WIKI
-	 WikiDialog        *wikiDialog;
-#endif
 
 //    ForumsDialog      *forumsDialog;
 //    ChannelFeed       *channelFeed;

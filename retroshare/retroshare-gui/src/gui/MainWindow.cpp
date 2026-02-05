@@ -69,7 +69,6 @@
 #include "SoundManager.h"
 #include "common/UserNotify.h"
 #include "gui/ServicePermissionDialog.h"
-#include <QStackedWidget>
 
 #ifdef UNFINISHED
 #include "unfinished/ApplicationWindow.h"
@@ -194,9 +193,6 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
 	gxschannelDialog=NULL;
 	gxsforumDialog=NULL;
 	postedDialog=NULL;
-#ifdef RS_USE_WIKI
-	wikiDialog=NULL;
-#endif
 
     /* Invoke the Qt Designer generated QObject setup routine */
     ui->setupUi(this);
@@ -461,6 +457,7 @@ void MainWindow::initStackedPage()
   addPage(peopleDialog = new PeopleDialog(ui->stackPages), grp, &notify);
   #endif
 #ifdef RS_USE_WIKI
+  WikiDialog *wikiDialog = NULL;
   addPage(wikiDialog = new WikiDialog(ui->stackPages), grp, &notify);
 #endif
 
@@ -1050,17 +1047,11 @@ void SetForegroundWindowInternal(HWND hWnd)
 			 break ;
 		 case Network:
 			 _instance->ui->stackPages->setCurrentPage( _instance->friendsDialog );
-			 _instance->friendsDialog->activatePage(FriendsDialog::NetworkTab);
+			 _instance->friendsDialog->activatePage(FriendsDialog::NetworkTab) ;
 			 break;
 		 case Friends:
 			 _instance->ui->stackPages->setCurrentPage( _instance->friendsDialog );
 			 break;
-#ifdef RS_USE_WIKI
-		 case Wiki:
-			 if(activateWikiPage(_instance->ui->stackPages, _instance->wikiDialog))
-				 return true;
-			 break;
-#endif
 		 case People:
 			 _instance->ui->stackPages->setCurrentPage( _instance->idDialog );
 			 break;
@@ -1096,15 +1087,6 @@ void SetForegroundWindowInternal(HWND hWnd)
 	 return false ;
 }
 
-/*static*/ bool MainWindow::activateWikiPage(QStackedWidget *stack, QWidget *wikiPage)
-{
-	if(!stack || !wikiPage)
-		return false;
-
-	stack->setCurrentWidget(wikiPage);
-	return stack->currentWidget() == wikiPage;
-}
-
 /** Get the active page. */
 /*static*/ MainWindow::Page MainWindow::getActivatePage()
 {
@@ -1120,31 +1102,26 @@ void SetForegroundWindowInternal(HWND hWnd)
    if (page == _instance->friendsDialog) {
        return Friends;
    }
-	if (page == _instance->settingsDialog) {
-		return Options;
-	}
-	if (page == _instance->chatLobbyDialog) {
-		return ChatLobby;
-	}
-	if (page == _instance->transfersDialog) {
-		return Transfers;
-	}
+   if (page == _instance->settingsDialog) {
+       return Options;
+   }
+   if (page == _instance->chatLobbyDialog) {
+       return ChatLobby;
+   }
+   if (page == _instance->transfersDialog) {
+       return Transfers;
+   }
 //   if (page == _instance->sharedfilesDialog) {
 //       return SharedDirectories;
  //  }
-	if (page == _instance->messagesDialog) {
-		return Messages;
-	}
-#ifdef RS_USE_WIKI
-	if (page == _instance->wikiDialog) {
-		return Wiki;
-	}
-#endif
+   if (page == _instance->messagesDialog) {
+       return Messages;
+   }
 #if 0
-	if (page == _instance->channelFeed) {
-		return Channels;
-	}
-	if (page == _instance->forumsDialog) {
+   if (page == _instance->channelFeed) {
+       return Channels;
+   }
+   if (page == _instance->forumsDialog) {
        return Forums;
    }
 #endif
@@ -1185,10 +1162,6 @@ void SetForegroundWindowInternal(HWND hWnd)
 			return _instance->gxsforumDialog;
 		case Posted:
 			return _instance->postedDialog;
-#ifdef RS_USE_WIKI
-		case Wiki:
-			return _instance->wikiDialog;
-#endif
         case Home:
             return _instance->homePage;
     }

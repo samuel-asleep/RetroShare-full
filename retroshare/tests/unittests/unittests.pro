@@ -18,7 +18,7 @@
 
 !include("../../retroshare.pri"): error("Could not include file ../../retroshare.pri")
 
-QT     += network xml widgets
+QT     += network xml
 CONFIG += bitdht
 
 CONFIG += gxs debug
@@ -287,8 +287,6 @@ DEPENDPATH += . \
 
 INCLUDEPATH += ../../libretroshare/src/
 INCLUDEPATH += ../librssimulator/
-INCLUDEPATH += ../../retroshare-gui/src
-INCLUDEPATH += ../../retroshare-gui/src/gui
 
 SOURCES +=  unittests.cc \
 
@@ -389,7 +387,6 @@ SOURCES += libretroshare/gxs/data_service/rsdataservice_test.cc \
 ############################### services ###################################
 
 SOURCES += libretroshare/services/status/status_test.cc \
-	libretroshare/services/wiki_notify_activation_test.cc \
 
 ############################### gxs ########################################
 
