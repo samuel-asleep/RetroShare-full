@@ -26,7 +26,7 @@
 
 #include <gtest/gtest.h>
 #include <QStackedWidget>
-#include <QCoreApplication>
+#include <QApplication>
 #include <QWidget>
 
 #include "gui/MainWindow.h"
@@ -35,13 +35,13 @@ TEST(WikiNotifyActivation, SwitchesToWikiPage)
 {
 	int argc = 0;
 	char** argv = nullptr;
-	QCoreApplication app(argc, argv);
+	QApplication app(argc, argv);
 
 	QStackedWidget stack;
 	QWidget wikiPage;
 	stack.addWidget(&wikiPage);
 
-	EXPECT_TRUE(MainWindow::setWikiPageForTest(&stack, &wikiPage));
+	EXPECT_TRUE(MainWindow::setStackWidgetCurrentForTest(&stack, &wikiPage));
 	EXPECT_EQ(&wikiPage, stack.currentWidget());
 }
 

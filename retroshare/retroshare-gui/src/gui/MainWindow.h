@@ -144,17 +144,17 @@ public:
     static void showWindow(MainPage *page);
     /** Set focus to the given page. */
     static bool activatePage (Page page);
-    static bool setWikiPageForTest(QStackedWidget *stack, QWidget *wikiPage)
+    static bool setStackWidgetCurrentForTest(QStackedWidget *stack, QWidget *page)
     {
 #ifdef RS_USE_WIKI
-        if(!stack || !wikiPage)
+        if(!stack || !page)
             return false;
 
-        stack->setCurrentWidget(wikiPage);
-        return stack->currentWidget() == wikiPage;
+        stack->setCurrentWidget(page);
+        return stack->currentWidget() == page;
 #else
         Q_UNUSED(stack);
-        Q_UNUSED(wikiPage);
+        Q_UNUSED(page);
         return false;
 #endif
     }
