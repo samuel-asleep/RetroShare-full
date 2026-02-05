@@ -1057,7 +1057,9 @@ void SetForegroundWindowInternal(HWND hWnd)
 			 break;
 #ifdef RS_USE_WIKI
 		 case Wiki:
-			 return activateWikiPage(_instance->ui->stackPages, _instance->wikiDialog);
+			 if(activateWikiPage(_instance->ui->stackPages, _instance->wikiDialog))
+				 return true;
+			 break;
 #endif
 		 case People:
 			 _instance->ui->stackPages->setCurrentPage( _instance->idDialog );
