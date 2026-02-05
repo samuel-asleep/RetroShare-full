@@ -41,7 +41,7 @@ TEST(WikiNotifyActivation, SetsWikiWidgetOnStack)
 	QWidget wikiPage;
 	stack.addWidget(&wikiPage);
 
-	EXPECT_TRUE(MainWindow::activateWikiPageForTest(&stack, &wikiPage));
+	EXPECT_TRUE(MainWindow::activateWikiPage(&stack, &wikiPage));
 	EXPECT_EQ(&wikiPage, stack.currentWidget());
 }
 

@@ -1057,7 +1057,7 @@ void SetForegroundWindowInternal(HWND hWnd)
 			 break;
 #ifdef RS_USE_WIKI
 		 case Wiki:
-			 return activateWikiPageForTest(_instance->ui->stackPages, _instance->wikiDialog);
+			 return activateWikiPage(_instance->ui->stackPages, _instance->wikiDialog);
 #endif
 		 case People:
 			 _instance->ui->stackPages->setCurrentPage( _instance->idDialog );
@@ -1094,7 +1094,7 @@ void SetForegroundWindowInternal(HWND hWnd)
 	 return false ;
 }
 
-/*static*/ bool MainWindow::activateWikiPageForTest(QStackedWidget *stack, QWidget *wikiPage)
+/*static*/ bool MainWindow::activateWikiPage(QStackedWidget *stack, QWidget *wikiPage)
 {
 	if(!stack || !wikiPage)
 		return false;
