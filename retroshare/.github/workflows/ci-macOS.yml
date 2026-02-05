@@ -55,6 +55,7 @@ jobs:
           botan@2
           libxslt
           libxml2
+          ffmpeg
           qt
 
       - name: Checkout submodules
