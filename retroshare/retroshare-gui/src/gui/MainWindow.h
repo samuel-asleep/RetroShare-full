@@ -320,7 +320,10 @@ private:
     void createMenuBar();
 #endif
     void createNotifyIcons();
+    void registerPageForEnum(Page pageType, MainPage* pageInstance);
+    MainPage* pageForEnum(Page pageType);
     static MainWindow *_instance;
+    QMap<Page, MainPage*> mPageRegistry;
 
     /** A BandwidthGraph object which handles monitoring RetroShare bandwidth usage */
     BandwidthGraph* _bandwidthGraph;

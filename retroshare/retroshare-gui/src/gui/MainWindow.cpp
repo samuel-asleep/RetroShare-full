@@ -23,9 +23,11 @@
 #include <QIcon>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QPixmap>
 #include <QStatusBar>
 #include <QString>
+#include <QThread>
 #include <QUrl>
 #include <QtDebug>
 #include <QMenuBar>
@@ -459,6 +461,7 @@ void MainWindow::initStackedPage()
 #ifdef RS_USE_WIKI
   WikiDialog *wikiDialog = NULL;
   addPage(wikiDialog = new WikiDialog(ui->stackPages), grp, &notify);
+  registerPageForEnum(Wiki, wikiDialog);
 #endif
 
 #ifdef RS_USE_WIRE
@@ -574,6 +577,31 @@ void MainWindow::addAction(QAction *action, FunctionType actionFunction, const c
     ui->listWidget->addItem(item) ;
 
     if (slot) _functionList[slot] = actionFunction;
+}
+
+void MainWindow::registerPageForEnum(Page pageType, MainPage* pageInstance) 
+{
+    if (pageInstance)
+        mPageRegistry[pageType] = pageInstance;
+}
+
+MainPage* MainWindow::pageForEnum(Page pageType)
+{
+	MainPage* pageInstance = mPageRegistry.value(pageType, nullptr);
+#ifdef RS_USE_WIKI
+	if (!pageInstance && pageType == Wiki) {
+		for (MainPage* candidate : ui->stackPages->pages()) {
+			if (qobject_cast<WikiDialog*>(candidate)) {
+				pageInstance = candidate;
+				break;
+			}
+		}
+		if (pageInstance) {
+			registerPageForEnum(pageType, pageInstance);
+		}
+	}
+#endif
+	return pageInstance;
 }
 
 /** Add the given page to the stackPage and list. */
@@ -1040,6 +1068,15 @@ void SetForegroundWindowInternal(HWND hWnd)
         return false;
     }
 
+	if (QThread::currentThread() != _instance->thread()) {
+		const Page queuedPage = page;
+		QMetaObject::invokeMethod(
+			_instance,
+			[queuedPage]() { MainWindow::activatePage(queuedPage); },
+			Qt::QueuedConnection);
+		return true;
+	}
+
 	 switch (page) {
 		 case Search:
 			 _instance->ui->stackPages->setCurrentPage( _instance->transfersDialog );
@@ -1080,6 +1117,14 @@ void SetForegroundWindowInternal(HWND hWnd)
 		case Posted:
 			_instance->ui->stackPages->setCurrentPage( _instance->postedDialog );
 			return true ;
+		case Wiki: {
+			MainPage* wikiPage = _instance->pageForEnum(Wiki);
+			if (wikiPage) {
+				_instance->ui->stackPages->setCurrentPage(wikiPage);
+				return true;
+			}
+			break;
+		}
 		 default:
 			 std::cerr << "Show page called on value that is not handled yet. Please code it! (value = " << page << ")" << std::endl;
 	 }
@@ -1164,6 +1209,8 @@ void SetForegroundWindowInternal(HWND hWnd)
 			return _instance->postedDialog;
         case Home:
             return _instance->homePage;
+		case Wiki:
+			return _instance->pageForEnum(Wiki);
     }
 
    return NULL;
