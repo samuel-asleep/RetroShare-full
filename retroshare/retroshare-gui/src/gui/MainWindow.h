@@ -68,7 +68,6 @@ class TransfersDialog;
 class MessagesDialog;
 class PluginsPage;
 class HomePage;
-class QStackedWidget;
 //class ChannelFeed;
 class BandwidthGraph;
 class MainPage;
