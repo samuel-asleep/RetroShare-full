@@ -39,8 +39,6 @@ jobs:
           rsync -a \
             --exclude='/.git' \
             --exclude='/.git/**' \
-            --exclude='/.github' \
-            --exclude='/.github/**' \
             --exclude='/.gitmodules' \
             ./retroshare/ "${PAYLOAD_DIR}/"
 
