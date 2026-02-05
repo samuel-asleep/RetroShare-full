@@ -80,4 +80,4 @@ jobs:
           QMAKE_LIBDIR+="/opt/homebrew/opt/libxml2/lib" \
           CONFIG+=no_retroshare_service \
           CONFIG+=no_retroshare_friendserver
-          make
+          make -j"$(sysctl -n hw.ncpu)"
