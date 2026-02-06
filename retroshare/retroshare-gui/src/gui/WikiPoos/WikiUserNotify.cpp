@@ -18,12 +18,13 @@
  *                                                                             *
  *******************************************************************************/
 
-#include "retroshare/rswiki.h"
 #include "retroshare/rsgxsifacehelper.h"
 #include "retroshare/rsgxsifacetypes.h"
 #include "WikiUserNotify.h"
+#include "WikiTokenWaiter.h"
 #include "gui/MainWindow.h"
 #include "gui/common/FilesDefs.h"
+#include "util/qtthreadsutils.h"
 
 WikiUserNotify::WikiUserNotify(RsGxsIfaceHelper *ifaceImpl, QObject *parent) :
     UserNotify(parent), mInterface(ifaceImpl), mNewCount(0)
@@ -41,23 +42,49 @@ bool WikiUserNotify::hasSetting(QString *name, QString *group)
 void WikiUserNotify::startUpdate()
 {
 	mNewCount = 0;
-	
-	if (mInterface)
+
+	if (!mInterface)
 	{
-		// Use the Wiki-specific statistics method
-		// This requires the getWikiStatistics() method to be implemented in libretroshare
-		// See LIBRETROSHARE_WIKI_NOTIFICATION_IMPLEMENTATION.md for implementation details
-		GxsServiceStatistic stats;
-		RsWiki* wikiService = dynamic_cast<RsWiki*>(mInterface);
-		
-		if (wikiService && wikiService->getWikiStatistics(stats))
-		{
-			// Count unread messages (both thread messages and child messages/comments)
-			mNewCount = stats.mNumThreadMsgsUnread + stats.mNumChildMsgsUnread;
-		}
+		update();
+		return;
 	}
-	
-	update();
+
+	RsThread::async([this]()
+	{
+		uint32_t token = 0;
+		if (!mInterface->requestServiceStatistic(token))
+		{
+			RsQThreadUtils::postToObject([this]() { update(); }, this);
+			return;
+		}
+
+		const bool ok = WikiTokenWaiter::waitForToken(
+			[this](uint32_t requestToken)
+			{
+				return mInterface->requestStatus(requestToken);
+			},
+			token);
+
+		unsigned int newCount = 0;
+		if (ok)
+		{
+			GxsServiceStatistic stats;
+			if (mInterface->getServiceStatistic(token, stats))
+			{
+				// Count unread messages (both thread messages and child messages/comments)
+				newCount = stats.mNumThreadMsgsUnread + stats.mNumChildMsgsUnread;
+			}
+		}
+
+		RsQThreadUtils::postToObject([this, newCount, ok]()
+		{
+			if (ok)
+			{
+				mNewCount = newCount;
+			}
+			update();
+		}, this);
+	});
 }
 
 unsigned int WikiUserNotify::getNewCount()
