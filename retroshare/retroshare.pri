@@ -229,7 +229,7 @@ no_rs_sam3_libsam3:CONFIG -= rs_sam3_libsam3
 
 
 #Wikipoos
-CONFIG *= wikipoos
+#CONFIG *= wikipoos
 
 # Specify host precompiled jsonapi-generator path, appending the following
 # assignation to qmake command line
