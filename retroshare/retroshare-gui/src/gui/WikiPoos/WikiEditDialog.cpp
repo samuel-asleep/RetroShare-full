@@ -26,6 +26,7 @@
 #include "gui/WikiPoos/WikiEditDialog.h"
 #include "util/DateTime.h"
 #include "util/qtthreadsutils.h"
+#include "util/WikiTokenWaiter.h"
 
 #include <retroshare/rsidentity.h>
 #include "util/rstime.h"
