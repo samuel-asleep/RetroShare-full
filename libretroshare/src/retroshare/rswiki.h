@@ -146,6 +146,14 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) = 0;
 	virtual bool updateCollection(const RsWikiCollection &collection) = 0;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
+	virtual bool getSnapshots(
+	        const std::list<RsGxsGroupId>& groupIds, std::vector<RsWikiSnapshot>& snapshots,
+	        uint32_t msgOptions = RS_TOKREQOPT_DEFAULT ) = 0;
+	virtual bool getSnapshots(
+	        const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots ) = 0;
+	virtual bool getRelatedSnapshots(
+	        const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots,
+	        uint32_t msgOptions = RS_TOKREQOPT_MSG_VERSIONS ) = 0;
 
 	/* Moderator Management */
 	/**
@@ -222,6 +230,7 @@ public:
 	 * @param read True to mark as read, false to mark as unread
 	 */
 	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+	virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 };
 
 #endif

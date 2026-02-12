@@ -31,7 +31,6 @@
 
 #include "WikiDialog.h"
 #include "WikiUserNotify.h"
-#include "WikiTokenWaiter.h"
 #include "gui/WikiPoos/WikiAddDialog.h"
 #include "gui/WikiPoos/WikiEditDialog.h"
 #include "gui/settings/rsharesettings.h"
@@ -534,15 +533,7 @@ void WikiDialog::setSelectedPageReadStatus(bool read)
 			return;
 		}
 
-		uint32_t token = 0;
-		rsWiki->setMessageReadStatus(token, msgId, read);
-		const bool ok = WikiTokenWaiter::waitForToken(
-			[](uint32_t requestToken)
-			{
-				return rsWiki->getTokenService()->requestStatus(requestToken);
-			},
-			token);
-		if (!ok)
+		if (!rsWiki->setMessageReadStatus(msgId, read))
 		{
 #ifdef WIKI_DEBUG
 			std::cerr << "WikiDialog::setSelectedPageReadStatus() token request failed"
@@ -667,30 +658,10 @@ void WikiDialog::loadPages(const RsGxsGroupId &groupId)
 
 	RsThread::async([this, groupId]()
 	{
-		// Fetch snapshots (pages) for the group using token-based API
-		uint32_t token;
-		RsTokReqOptions opts;
-		opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
-		opts.mOptions = (RS_TOKREQOPT_MSG_LATEST | RS_TOKREQOPT_MSG_THREAD); // Latest thread heads.
-
-		std::list<RsGxsGroupId> groupIds;
-		groupIds.push_back(groupId);
-
-		rsWiki->getTokenService()->requestMsgInfo(token, RS_TOKREQ_ANSTYPE_DATA, opts, groupIds);
-
-		if (!WikiTokenWaiter::waitForToken(
-		        [this](uint32_t requestToken)
-		        {
-			        return rsWiki->getTokenService()->requestStatus(requestToken);
-		        },
-		        token))
-		{
-			std::cerr << "WikiDialog::loadPages() Token request failed" << std::endl;
-			return;
-		}
-
 		std::vector<RsWikiSnapshot> snapshots;
-		if (!rsWiki->getSnapshots(token, snapshots))
+		if (!rsWiki->getSnapshots(
+		        std::list<RsGxsGroupId>({groupId}), snapshots,
+		        RS_TOKREQOPT_MSG_LATEST | RS_TOKREQOPT_MSG_THREAD))
 		{
 			std::cerr << "WikiDialog::loadPages() Error getting snapshots" << std::endl;
 			return;
@@ -752,32 +723,8 @@ void WikiDialog::loadWikiPage(const RsGxsGrpMsgIdPair &msgId)
 
 	RsThread::async([this, msgId]()
 	{
-		// Fetch specific wiki page
 		std::vector<RsWikiSnapshot> snapshots;
-		
-		// Use token system to get snapshot data
-		RsTokReqOptions opts;
-		opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
-		
-		uint32_t token;
-		GxsMsgReq msgIds;
-		std::set<RsGxsMessageId> &set_msgIds = msgIds[msgId.first];
-		set_msgIds.insert(msgId.second);
-		
-		rsWiki->getTokenService()->requestMsgInfo(token, RS_TOKREQ_ANSTYPE_DATA, opts, msgIds);
-
-		if (!WikiTokenWaiter::waitForToken(
-		        [this](uint32_t requestToken)
-		        {
-			        return rsWiki->getTokenService()->requestStatus(requestToken);
-		        },
-		        token))
-		{
-			std::cerr << "WikiDialog::loadWikiPage() Token request failed" << std::endl;
-			return;
-		}
-		
-		if (!rsWiki->getSnapshots(token, snapshots) || snapshots.empty())
+		if (!rsWiki->getSnapshots(msgId, snapshots) || snapshots.empty())
 		{
 			std::cerr << "WikiDialog::loadWikiPage() Error loading snapshot" << std::endl;
 			return;

@@ -66,6 +66,14 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) override;
 	virtual bool updateCollection(const RsWikiCollection &collection) override;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) override;
+	virtual bool getSnapshots(
+	        const std::list<RsGxsGroupId>& groupIds, std::vector<RsWikiSnapshot>& snapshots,
+	        uint32_t msgOptions = RS_TOKREQOPT_DEFAULT ) override;
+	virtual bool getSnapshots(
+	        const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots ) override;
+	virtual bool getRelatedSnapshots(
+	        const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots,
+	        uint32_t msgOptions = RS_TOKREQOPT_MSG_VERSIONS ) override;
 
 	/* Moderator management */
 	virtual bool addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) override;
@@ -84,6 +92,7 @@ public:
 	/* Notification support */
 	virtual bool getWikiStatistics(GxsServiceStatistic& stats) override;
 	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) override;
+	virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
 protected:
 	bool acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t size) override;

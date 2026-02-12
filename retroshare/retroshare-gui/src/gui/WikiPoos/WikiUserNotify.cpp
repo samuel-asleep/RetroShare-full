@@ -20,8 +20,8 @@
 
 #include "retroshare/rsgxsifacehelper.h"
 #include "retroshare/rsgxsifacetypes.h"
+#include "retroshare/rswiki.h"
 #include "WikiUserNotify.h"
-#include "WikiTokenWaiter.h"
 #include "gui/MainWindow.h"
 #include "gui/common/FilesDefs.h"
 #include "util/qtthreadsutils.h"
@@ -47,32 +47,16 @@ void WikiUserNotify::startUpdate()
 	mNewCount = 0;
 
 	QPointer<WikiUserNotify> self(this);
-	RsGxsIfaceHelper *iface = mInterface;
-
-	RsThread::async([self, iface]()
+	RsThread::async([self]()
 	{
 		unsigned int newCount = 0;
-		if (iface)
+		if (rsWiki)
 		{
-			uint32_t token = 0;
-			if (iface->requestServiceStatistic(token))
+			GxsServiceStatistic stats;
+			if (rsWiki->getWikiStatistics(stats))
 			{
-				const bool ok = WikiTokenWaiter::waitForToken(
-					[iface](uint32_t requestToken)
-					{
-						return iface->requestStatus(requestToken);
-					},
-					token);
-
-				if (ok)
-				{
-					GxsServiceStatistic stats;
-					if (iface->getServiceStatistic(token, stats))
-					{
-						// Count unread messages (both thread messages and child messages/comments)
-						newCount = stats.mNumThreadMsgsUnread + stats.mNumChildMsgsUnread;
-					}
-				}
+				// Count unread messages (both thread messages and child messages/comments)
+				newCount = stats.mNumThreadMsgsUnread + stats.mNumChildMsgsUnread;
 			}
 		}
 

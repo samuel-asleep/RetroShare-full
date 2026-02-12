@@ -293,6 +293,55 @@ bool p3Wiki::getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<
 	return getCollections(token, groups) && !groups.empty();
 }
 
+bool p3Wiki::getSnapshots(
+        const std::list<RsGxsGroupId>& groupIds, std::vector<RsWikiSnapshot>& snapshots,
+        uint32_t msgOptions )
+{
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+	opts.mOptions = msgOptions;
+
+	if (!requestMsgInfo(token, opts, groupIds) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+
+	return getSnapshots(token, snapshots);
+}
+
+bool p3Wiki::getSnapshots(
+        const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots )
+{
+	GxsMsgReq msgReq;
+	msgReq[msgId.first].insert(msgId.second);
+
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+
+	if (!requestMsgInfo(token, opts, msgReq) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+
+	return getSnapshots(token, snapshots);
+}
+
+bool p3Wiki::getRelatedSnapshots(
+        const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots,
+        uint32_t msgOptions )
+{
+	std::vector<RsGxsGrpMsgIdPair> msgIds;
+	msgIds.push_back(msgId);
+
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
+	opts.mOptions = msgOptions;
+
+	if (!requestMsgRelatedInfo(token, opts, msgIds) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+
+	return getRelatedSnapshots(token, snapshots);
+}
+
 bool p3Wiki::addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId)
 {
 	std::vector<RsWikiCollection> collections;
@@ -586,6 +635,13 @@ void p3Wiki::setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgI
 		event->mWikiMsgId = msgId.second;
 		rsEvents->postEvent(event);
 	}
+}
+
+bool p3Wiki::setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read)
+{
+	uint32_t token = 0;
+	setMessageReadStatus(token, msgId, read);
+	return waitToken(token) == RsTokenService::COMPLETE;
 }
 
 /* Stream operators for debugging */

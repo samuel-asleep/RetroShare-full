@@ -24,7 +24,6 @@
 
 #include "gui/gxs/GxsIdTreeWidgetItem.h"
 #include "gui/WikiPoos/WikiEditDialog.h"
-#include "gui/WikiPoos/WikiTokenWaiter.h"
 #include "util/DateTime.h"
 #include "util/qtthreadsutils.h"
 
@@ -732,30 +731,10 @@ void WikiEditDialog::requestGroup(const RsGxsGroupId &groupId)
 
 	RsThread::async([this, groupId]()
 	{
-		std::list<RsGxsGroupId> ids;
-		ids.push_back(groupId);
-
-		RsTokReqOptions opts;
-		opts.mReqType = GXS_REQUEST_TYPE_GROUP_DATA;
-
-		uint32_t token;
-		rsWiki->getTokenService()->requestGroupInfo(token, RS_TOKREQ_ANSTYPE_DATA, opts, ids);
-
-		const bool ok = WikiTokenWaiter::waitForToken(
-			[this](uint32_t requestToken)
-			{
-				return rsWiki->getTokenService()->requestStatus(requestToken);
-			},
-			token);
-
 		std::vector<RsWikiCollection> groups;
-		const RsTokenService::GxsRequestStatus finalStatus = ok
-			? RsTokenService::COMPLETE
-			: RsTokenService::FAILED;
-		if (finalStatus == RsTokenService::COMPLETE)
-		{
-			rsWiki->getCollections(token, groups);
-		}
+		const RsTokenService::GxsRequestStatus finalStatus =
+		        rsWiki->getCollections(std::list<RsGxsGroupId>({groupId}), groups)
+		        ? RsTokenService::COMPLETE : RsTokenService::FAILED;
 
 		RsQThreadUtils::postToObject([this, groups, finalStatus]()
 		{
@@ -797,31 +776,10 @@ void WikiEditDialog::requestPage(const RsGxsGrpMsgIdPair &msgId)
 
 	RsThread::async([this, msgId]()
 	{
-		RsTokReqOptions opts;
-		opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
-
-		GxsMsgReq msgIds;
-		std::set<RsGxsMessageId> &set_msgIds = msgIds[msgId.first];
-		set_msgIds.insert(msgId.second);
-
-		uint32_t token;
-		rsWiki->getTokenService()->requestMsgInfo(token, RS_TOKREQ_ANSTYPE_DATA, opts, msgIds);
-
-		const bool ok = WikiTokenWaiter::waitForToken(
-			[this](uint32_t requestToken)
-			{
-				return rsWiki->getTokenService()->requestStatus(requestToken);
-			},
-			token);
-
 		std::vector<RsWikiSnapshot> snapshots;
-		const RsTokenService::GxsRequestStatus finalStatus = ok
-			? RsTokenService::COMPLETE
-			: RsTokenService::FAILED;
-		if (finalStatus == RsTokenService::COMPLETE)
-		{
-			rsWiki->getSnapshots(token, snapshots);
-		}
+		const RsTokenService::GxsRequestStatus finalStatus =
+		        rsWiki->getSnapshots(msgId, snapshots)
+		        ? RsTokenService::COMPLETE : RsTokenService::FAILED;
 
 		RsQThreadUtils::postToObject([this, snapshots, finalStatus]()
 		{
@@ -882,31 +840,10 @@ void WikiEditDialog::requestBaseHistory(const RsGxsGrpMsgIdPair &origMsgId)
 
 	RsThread::async([this, origMsgId]()
 	{
-		RsTokReqOptions opts;
-		opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
-		opts.mOptions = RS_TOKREQOPT_MSG_VERSIONS;
-
-		std::vector<RsGxsGrpMsgIdPair> msgIds;
-		msgIds.push_back(origMsgId);
-
-		uint32_t token;
-		rsWiki->getTokenService()->requestMsgRelatedInfo(token, RS_TOKREQ_ANSTYPE_DATA, opts, msgIds);
-
-		const bool ok = WikiTokenWaiter::waitForToken(
-			[this](uint32_t requestToken)
-			{
-				return rsWiki->getTokenService()->requestStatus(requestToken);
-			},
-			token);
-
 		std::vector<RsWikiSnapshot> snapshots;
-		const RsTokenService::GxsRequestStatus finalStatus = ok
-			? RsTokenService::COMPLETE
-			: RsTokenService::FAILED;
-		if (finalStatus == RsTokenService::COMPLETE)
-		{
-			rsWiki->getRelatedSnapshots(token, snapshots);
-		}
+		const RsTokenService::GxsRequestStatus finalStatus =
+		        rsWiki->getRelatedSnapshots(origMsgId, snapshots, RS_TOKREQOPT_MSG_VERSIONS)
+		        ? RsTokenService::COMPLETE : RsTokenService::FAILED;
 
 		RsQThreadUtils::postToObject([this, snapshots, finalStatus]()
 		{
@@ -991,31 +928,11 @@ void WikiEditDialog::requestEditTreeData() //const RsGxsGroupId &groupId)
 	const RsGxsGroupId groupId = mThreadMsgIdPair.first;
 	RsThread::async([this, groupId]()
 	{
-		RsTokReqOptions opts;
-		opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
-		opts.mOptions = RS_TOKREQOPT_MSG_LATEST;
-
-		std::list<RsGxsGroupId> groupIds;
-		groupIds.push_back(groupId);
-
-		uint32_t token;
-		rsWiki->getTokenService()->requestMsgInfo(token, RS_TOKREQ_ANSTYPE_DATA, opts, groupIds);
-
-		const bool ok = WikiTokenWaiter::waitForToken(
-			[this](uint32_t requestToken)
-			{
-				return rsWiki->getTokenService()->requestStatus(requestToken);
-			},
-			token);
-
 		std::vector<RsWikiSnapshot> snapshots;
-		const RsTokenService::GxsRequestStatus finalStatus = ok
-			? RsTokenService::COMPLETE
-			: RsTokenService::FAILED;
-		if (finalStatus == RsTokenService::COMPLETE)
-		{
-			rsWiki->getSnapshots(token, snapshots);
-		}
+		const RsTokenService::GxsRequestStatus finalStatus =
+		        rsWiki->getSnapshots(std::list<RsGxsGroupId>({groupId}), snapshots,
+		                             RS_TOKREQOPT_MSG_LATEST)
+		        ? RsTokenService::COMPLETE : RsTokenService::FAILED;
 
 		RsQThreadUtils::postToObject([this, snapshots, finalStatus]()
 		{
