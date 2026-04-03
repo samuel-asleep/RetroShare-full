@@ -107,9 +107,6 @@ jobs:
           fi
 
           CHANGED=$(git diff --cached --stat | tail -1)
-          git commit -m "sync: update ${TARGET_FOLDER} from ${UPSTREAM_REPO}@${UPSTREAM_BRANCH}
-
-${CHANGED}"
+          git commit -m "sync: update ${TARGET_FOLDER} from ${UPSTREAM_REPO}@${UPSTREAM_BRANCH} (${CHANGED})"
 
           git push origin HEAD
-          
