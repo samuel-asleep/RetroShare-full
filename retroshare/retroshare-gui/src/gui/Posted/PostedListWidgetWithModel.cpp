@@ -871,10 +871,9 @@ void PostedListWidgetWithModel::togglePinPost()
         mGroup.mPinnedPosts.ids.erase(post.mMeta.mMsgId);
 
     RsPostedGroup updatedGroup = mGroup;
-    RsThread::async([updatedGroup]()
+    RsThread::async([updatedGroup]() mutable
     {
-        RsPostedGroup grp = updatedGroup;
-        rsPosted->editBoard(grp);
+        rsPosted->editBoard(updatedGroup);
     });
 }
 

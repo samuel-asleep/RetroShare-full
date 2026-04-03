@@ -775,10 +775,11 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
 
         if(origAuthor != authorId && !isAdmin)
         {
-            error_message = "Editor identity " + authorId.toStdString()
-                    + " does not match original post author " + origAuthor.toStdString()
-                    + " and editor is not board admin.";
-            RsErr() << error_message;
+            error_message = "You do not have permission to edit this post. "
+                            "Only the post author or a board admin can edit posts.";
+            RsErr() << __PRETTY_FUNCTION__ << " Editor " << authorId
+                    << " is neither the original author " << origAuthor
+                    << " nor a board admin." << std::endl;
             return false;
         }
     }

@@ -199,8 +199,8 @@ void PostedCreatePostDialog::createPost()
 		RsQThreadUtils::postToObject( [res, error_message, this]()
 		{
 			if(!res)
-				QMessageBox::warning(nullptr, tr("Error while creating post"),
-				                     QString("%1\n\n%2").arg(tr("An error occurred while creating the post."),
+				QMessageBox::warning(nullptr, tr("Error while saving post"),
+				                     QString("%1\n\n%2").arg(tr("An error occurred while saving the post."),
 				                                            QString::fromStdString(error_message)));
 			accept();
 		}, this );
