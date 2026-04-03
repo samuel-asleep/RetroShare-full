@@ -1256,8 +1256,7 @@ bool	ftServer::sendData(const RsPeerId& peerId, const RsFileHash& hash, uint64_t
 	{
 		//static const uint32_t	MAX_FT_CHUNK  = 32 * 1024; /* 32K */
 		//static const uint32_t	MAX_FT_CHUNK  = 16 * 1024; /* 16K */
-		//
-		static const uint32_t	MAX_FT_CHUNK  = 8 * 1024; /* 16K */
+		static const uint32_t	MAX_FT_CHUNK  = 240 * 1024; /* 240K */
 
 		/* workout size */
 		chunk = MAX_FT_CHUNK;
@@ -2363,4 +2362,17 @@ uint64_t ftServer::getCumulativeUploadNum()
 void ftServer::clearUploadStats()
 {
 	return mFileDatabase->clearUploadStats();
+}
+
+void ftServer::setUploadStatsRetentionDays(int days)
+{
+    if (mFileDatabase)
+        mFileDatabase->setUploadStatsRetentionDays(days);
+}
+
+int ftServer::getUploadStatsRetentionDays()
+{
+    if (mFileDatabase)
+        return mFileDatabase->getUploadStatsRetentionDays();
+    return 0;
 }

@@ -518,6 +518,8 @@ int p3MsgService::checkOutgoingMessages()
     if(rsEvents && !pEvent->mChangedMsgIds.empty())
         rsEvents->postEvent(pEvent);
 
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+
     return 0;
 }
 
@@ -1182,7 +1184,7 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
             msgList.push_back(mis);
         }
 
-    if(box==BoxName::BOX_ALL || box == BoxName::BOX_OUTBOX)
+    if(box == BoxName::BOX_OUTBOX)
         for(const auto& mit:msgOutgoing) // Now special process for outgoing, since it's references with their own Ids
         {
             auto mref = mSentMessages.find(mit.first);
