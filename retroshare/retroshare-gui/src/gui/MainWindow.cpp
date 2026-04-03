@@ -28,6 +28,7 @@
 #include <QString>
 #include <QUrl>
 #include <QtDebug>
+#include <QApplication>
 #include <QMenuBar>
 #include <QActionGroup>
 
@@ -193,6 +194,9 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
 	gxschannelDialog=NULL;
 	gxsforumDialog=NULL;
 	postedDialog=NULL;
+#ifdef RS_USE_WIRE
+	wireDialog=NULL;
+#endif
 
     /* Invoke the Qt Designer generated QObject setup routine */
     ui->setupUi(this);
@@ -462,7 +466,6 @@ void MainWindow::initStackedPage()
 #endif
 
 #ifdef RS_USE_WIRE
-  WireDialog *wireDialog = NULL;
   addPage(wireDialog = new WireDialog(ui->stackPages), grp, &notify);
 #endif
 
@@ -1128,6 +1131,11 @@ void SetForegroundWindowInternal(HWND hWnd)
    if (page == _instance->messagesDialog) {
        return Messages;
    }
+#ifdef RS_USE_WIRE
+   if (page == _instance->wireDialog) {
+       return Wire;
+   }
+#endif
 #if 0
    if (page == _instance->channelFeed) {
        return Channels;
@@ -1167,6 +1175,7 @@ void SetForegroundWindowInternal(HWND hWnd)
 			return _instance->transfersDialog->searchDialog;
 		case Messages:
 			return _instance->messagesDialog;
+
 		case Channels:
 			return _instance->gxschannelDialog;
 		case Forums:
@@ -1179,6 +1188,10 @@ void SetForegroundWindowInternal(HWND hWnd)
 #endif
         case Home:
             return _instance->homePage;
+#ifdef RS_USE_WIRE
+        case Wire:
+            return _instance->wireDialog;
+#endif
     }
 
    return NULL;
@@ -1508,6 +1521,7 @@ void MainWindow::loadOwnStatus()
 void MainWindow::checkAndSetIdle(int idleTime)
 {
     int maxTimeBeforeIdle = Settings->getMaxTimeBeforeIdle();
+    if (maxTimeBeforeIdle == 0) return; // 0 means never go idle
     if ((idleTime >= maxTimeBeforeIdle) && !isIdle) {
         setIdle(true);
     } else if ((idleTime < maxTimeBeforeIdle) && isIdle) {
@@ -1838,8 +1852,18 @@ void MainWindow::setCompactStatusMode(bool compact)
 
 Gui_InputDialogReturn MainWindow::guiInputDialog(const QString& windowTitle, const QString& labelText, QLineEdit::EchoMode textEchoMode, bool modal)
 {
+	QWidget *activeModal = qApp->activeModalWidget();
+	if (!activeModal) {
+		activeModal = qApp->focusWidget();
+	}
+	if (!activeModal) {
+		activeModal = qApp->activeWindow();
+	}
+	if (!activeModal) {
+		activeModal = this;
+	}
 
-	QInputDialog dialog(this);
+	QInputDialog dialog(activeModal);
 	dialog.setWindowTitle(windowTitle);
 	dialog.setLabelText(labelText);
 	dialog.setTextEchoMode(textEchoMode);

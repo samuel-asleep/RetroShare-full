@@ -24,6 +24,8 @@
 #include "retroshare-gui/mainpage.h"
 #include "ui_WireDialog.h"
 
+#include <QTimer>
+
 #include <retroshare/rswire.h>
 
 #include <map>
@@ -34,9 +36,11 @@
 #include "gui/TheWire/PulseViewItem.h"
 #include "gui/TheWire/PulseTopLevel.h"
 #include "gui/TheWire/PulseReply.h"
+#include "gui/gxs/GxsStatisticsProvider.h"
 
-
-#include "util/TokenQueue.h"
+class UIStateHelper;
+class GxsMessageFrameWidget;
+class RsGxsIfaceHelper;
 
 #define IMAGE_WIRE              ":/icons/wire.png"
 
@@ -68,7 +72,7 @@ public:
 };
 //---------------------------------------------------------
 
-class WireDialog : public MainPage, public TokenResponse, public WireGroupHolder, public PulseViewHolder
+class WireDialog : public MainPage, public GxsStatisticsProvider, public WireGroupHolder, public PulseViewHolder
 {
   Q_OBJECT
 
@@ -114,18 +118,38 @@ public:
 	void showGroupFocus(const RsGxsGroupId groupId);
 	void postGroupFocus(RsWireGroupSPtr group, std::list<RsWirePulseSPtr> pulses);
 
-	void requestGroupsPulses(const std::list<RsGxsGroupId>& groupIds);
-	void showGroupsPulses(const std::list<RsGxsGroupId>& groupIds);
+	void requestGroupsPulses(const std::list<RsGxsGroupId>& groupIds, bool addToHistory = true);
+	void showGroupsPulses(const std::list<RsGxsGroupId>& groupIds, bool addToHistory = true);
 	void postGroupsPulses(std::list<RsWirePulseSPtr> pulses);
+
+    void getServiceStatistics(GxsServiceStatistic& stats) const override;
+
+    virtual bool navigate(const RsGxsGroupId &groupId, const RsGxsMessageId& msgId);
+
+protected:
+
+    bool getGroupStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat);
+    UserNotify *createUserNotify(QObject *parent) override;
+    virtual void updateGroupStatistics(const RsGxsGroupId &groupId);
+    virtual void updateGroupStatisticsReal(const RsGxsGroupId &groupId);
 
 private slots:
 
 	void createGroup();
 	void createPulse();
+	void showHomeFeed();
+	void filterUsers(const QString &text);
 	void checkUpdate();
 	void refreshGroups();
 	void selectGroupSet(int index);
 	void selectFilterTime(int index);
+
+	// Filter menu actions
+	void toggleSortAscending();
+
+	// Account filter slots
+	void sortAccountsChanged(QAction *action);
+	void hideInactiveChanged(bool checked);
 
 	// history navigation.
 	void back();
@@ -139,9 +163,9 @@ private:
 	void addGroup(const RsWireGroup &group);
 
 	void deleteGroups();
-	void showGroups();
+	void showGroups(bool addToHistory = true);
 	void showSelectedGroups();
-	void updateGroups(std::vector<RsWireGroup> &groups);
+	void updateGroups(const std::vector<RsWireGroup> &groups);
 
 	void processSettings(bool load);
 
@@ -150,16 +174,13 @@ private:
 
 	// Loading Data.
 	void requestGroupData();
-    bool loadGroupData(const uint32_t &token);
-	void acknowledgeGroup(const uint32_t &token, const uint32_t &userType);
 
-	virtual void loadRequest(const TokenQueue *queue, const TokenRequest &req) override;
+	GxsMessageFrameWidget *messageWidget(const RsGxsGroupId &groupId);
 
 	int mGroupSet;
 
 	PulseAddDialog *mAddDialog;
 	WireGroupItem *mGroupSelected;
-	TokenQueue *mWireQueue;
 
 	std::map<RsGxsGroupId, RsWireGroup> mAllGroups;
 	std::vector<RsWireGroup> mOwnGroups;
@@ -170,10 +191,27 @@ private:
 
 	int32_t mHistoryIndex;
 	std::vector<WireViewHistory> mHistory;
+	bool mSortAscending;
+	int mAccountSortType;
+	bool mHideInactiveAccounts;
+
+	// Members for GxsStatisticsProvider interface support
+	QString mSettingsName;
+	RsGxsIfaceHelper *mInterface;
+	bool mDistSyncAllowed;
+	std::map<RsGxsGroupId,GxsGroupStatistic> mCachedGroupStats;
+	bool mShouldUpdateGroupStatistics;
+	std::set<RsGxsGroupId> mGroupStatisticsToUpdate;
+	bool mCountChildMsgs;
+	RsGxsGroupId mNavigatePendingGroupId;
+	RsGxsMessageId mNavigatePendingMsgId;
+	UIStateHelper *mStateHelper;
 
 	/* UI - from Designer */
 	Ui::WireDialog ui;
 
+	QTimer *mUpdateTimer;
+	bool mRequestGroupDataInProgress;
 };
 
 #endif

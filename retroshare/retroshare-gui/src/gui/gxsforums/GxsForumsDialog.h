@@ -53,7 +53,7 @@ private:
 	/* GxsGroupFrameDialog */
 	QString text(TextType type)override ;
 	QString icon(IconType type)override ;
-	QString settingsGroupName() override { return "ForumsDialog"; }
+	QString settingsGroupName() { return "ForumsDialog"; }
 
 	GxsGroupDialog *createNewGroupDialog() override;
 	GxsGroupDialog *createGroupDialog(GxsGroupDialog::Mode mode, RsGxsGroupId groupId) override;
@@ -65,6 +65,11 @@ private:
 	void handleEvent_main_thread(std::shared_ptr<const RsEvent> event);
 
     RsEventsHandlerId_t mEventHandlerId;
+
+    QTimer *mUpdateTimer;
+
+private slots:
+    void timerUpdate() { updateDisplay(true); }
 };
 
 #endif

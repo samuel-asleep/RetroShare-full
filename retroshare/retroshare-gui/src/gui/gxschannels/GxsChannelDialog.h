@@ -71,7 +71,7 @@ private:
 	/* GxsGroupFrameDialog */
     virtual QString text(TextType type) override;
     virtual QString icon(IconType type) override;
-    virtual QString settingsGroupName() override { return "ChannelDialog"; }
+    virtual QString settingsGroupName() { return "ChannelDialog"; }
     virtual GxsGroupDialog *createNewGroupDialog() override;
     virtual GxsGroupDialog *createGroupDialog(GxsGroupDialog::Mode mode, RsGxsGroupId groupId) override;
     virtual int shareKeyType() override;
@@ -86,6 +86,11 @@ private:
     std::set<TurtleRequestId> mSearchResults;
 
     RsEventsHandlerId_t mEventHandlerId;
+
+    QTimer *mUpdateTimer;
+
+private slots:
+    void timerUpdate() { updateDisplay(true); }
 };
 
 #endif

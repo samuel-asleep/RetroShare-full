@@ -404,6 +404,21 @@ void GxsForumThreadWidget::handleEvent_main_thread(std::shared_ptr<const RsEvent
             if(e->mForumGroupId == mForumGroup.mMeta.mGroupId)
                 updateDisplay(true);
             break;
+
+        case RsForumEventCode::SUBSCRIBE_STATUS_CHANGED:
+            if(e->mForumGroupId == mForumGroup.mMeta.mGroupId)
+            {
+                // Toggle subscribe flag locally and refresh UI without GXS request
+                // to avoid concurrent request with parent dialog's tree rebuild
+                if(IS_GROUP_SUBSCRIBED(mForumGroup.mMeta.mSubscribeFlags))
+                    mForumGroup.mMeta.mSubscribeFlags &= ~GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED;
+                else
+                    mForumGroup.mMeta.mSubscribeFlags |= GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED;
+
+                updateGroupData();
+            }
+            break;
+
         default: break;
         }
     }
@@ -730,12 +745,12 @@ void GxsForumThreadWidget::threadListCustomPopupMenu(QPoint /*point*/)
             else
             {
                 // Go through the list of own ids and see if one of them is a moderator
-                // TODO: offer to select which moderator ID to use if multiple IDs fit the conditions of the forum
 
                 std::list<RsGxsId> own_ids ;
                 rsIdentity->getOwnIds(own_ids) ;
 
                 for(auto it(own_ids.begin());it!=own_ids.end();++it)
+                    // TODO: also make sure the ID is in the circle
                     if(mForumGroup.canEditPosts(*it))
                     {
                         contextMnu.addAction(editAct);
@@ -1746,19 +1761,7 @@ void GxsForumThreadWidget::editForumMessageData(const RsGxsForumMsg& msg)
         return;
     }
 
-    // Go through the list of own ids and see if one of them is a moderator
-    // TODO: offer to select which moderator ID to use if multiple IDs fit the conditions of the forum
-
-    RsGxsId moderator_id ;
-
-    std::list<RsGxsId> own_ids ;
-    rsIdentity->getOwnIds(own_ids) ;
-    std::set<RsGxsId> modIds;
-    for(auto it(own_ids.begin());it!=own_ids.end();++it)
-        if(mForumGroup.mAdminList.ids.find(*it) != mForumGroup.mAdminList.ids.end())
-            modIds.insert(*it);
-
-    CreateGxsForumMsg *cfm = new CreateGxsForumMsg(groupId(), msg.mMeta.mParentId, msg.mMeta.mMsgId, msg.mMeta.mAuthorId, modIds);
+    CreateGxsForumMsg *cfm = new CreateGxsForumMsg(groupId(), msg.mMeta.mParentId, msg.mMeta.mMsgId, msg.mMeta.mAuthorId, mForumGroup.mAdminList.ids);
 
     cfm->insertPastedText(QString::fromUtf8(msg.mMsg.c_str())) ;
     cfm->show();
@@ -1847,13 +1850,34 @@ void GxsForumThreadWidget::filterItems(const QString& text)
     QSortFilterProxyModel_setFilterRegularExpression(mThreadProxyModel, QString(RsGxsForumModel::FilterString)) ;
 
     if(!lst.empty())
+    {
         ui->threadTreeWidget->expandAll();
+
+        if (!mThreadId.isNull())
+        {
+            QModelIndex src_index = mThreadModel->getIndexOfMessage(mThreadId);
+            QModelIndex proxy_index = mThreadProxyModel->mapFromSource(src_index);
+            if (proxy_index.isValid())
+            {
+                ui->threadTreeWidget->setCurrentIndex(proxy_index);
+                ui->threadTreeWidget->scrollTo(proxy_index);
+            }
+            else
+            {
+                blankPost();
+                mThreadId.clear();
+                mOrigThreadId.clear();
+            }
+        }
+    }
     else {
-        // currentIndex() not on the clicked message, so not this way
-        // if (!mThreadId.isNull()) {
-        // 	an_index = mThreadProxyModel->mapToSource(ui->threadTreeWidget->currentIndex());
-        // }
         ui->threadTreeWidget->collapseAll();
+
+        if (mThreadId.isNull())
+        {
+            mThreadId = mOrigThreadId = mLastSelectedPosts[groupId()];
+        }
+
         if (!mThreadId.isNull()) {
             // ...but this one
             QModelIndex an_index = mThreadModel->getIndexOfMessage(mThreadId);
@@ -1960,7 +1984,8 @@ void GxsForumThreadWidget::updateGroupData()
     // ui->threadTreeWidget->selectionModel()->reset();
     // mThreadProxyModel->clear();
 
-    setForumDescriptionLoading();
+    if(mThreadId.isNull())
+        setForumDescriptionLoading();
 
     RsThread::async([this]()
     {
@@ -1994,7 +2019,12 @@ void GxsForumThreadWidget::updateGroupData()
              * after a blocking call to RetroShare API complete */
 
                 mForumGroup = group;
-                mThreadId.clear();
+
+                // Only clear the selected thread if we actually changed forums.
+                // When refreshing the same forum (e.g. new message event),
+                // we want to keep the currently selected post visible.
+                if(group.mMeta.mGroupId != mThreadModel->currentGroupId())
+                    mThreadId.clear();
 
                 ui->threadTreeWidget->setColumnHidden(RsGxsForumModel::COLUMN_THREAD_DISTRIBUTION, !IS_GROUP_PGP_KNOWN_AUTHED(mForumGroup.mMeta.mSignFlags) && !(IS_GROUP_PGP_AUTHED(mForumGroup.mMeta.mSignFlags)));
                 ui->subscribeToolButton->setHidden(IS_GROUP_SUBSCRIBED(mForumGroup.mMeta.mSubscribeFlags)) ;

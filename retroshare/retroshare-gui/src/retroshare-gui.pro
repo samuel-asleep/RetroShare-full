@@ -418,9 +418,11 @@ HEADERS +=  rshare.h \
             gui/statistics/DhtWindow.h \
             gui/statistics/GlobalRouterStatistics.h \
             gui/statistics/GxsTransportStatistics.h \
+            gui/statistics/GxsNetTunnelsDialog.h \
             gui/statistics/StatisticsWindow.h \
             gui/statistics/BwCtrlWindow.h \
             gui/statistics/RttStatistics.h \
+            gui/statistics/TunnelStatisticsDialog.h \
             gui/FileTransfer/TransferUserNotify.h \
             gui/plugins/PluginInterface.h \
             gui/im_history/ImHistoryBrowser.h \
@@ -723,9 +725,11 @@ FORMS +=    gui/StartDialog.ui \
             gui/statistics/GxsIdStatistics.ui \
             gui/statistics/GlobalRouterStatistics.ui \
             gui/statistics/GxsTransportStatistics.ui \
+            gui/statistics/GxsNetTunnelsDialog.ui \
             gui/statistics/StatisticsWindow.ui \
             gui/statistics/BwCtrlWindow.ui \
             gui/statistics/RttStatistics.ui \
+            gui/statistics/TunnelStatisticsDialog.ui \
             gui/GetStartedDialog.ui \
             util/RichTextEdit.ui
 
@@ -974,9 +978,11 @@ SOURCES +=  main.cpp \
             gui/statistics/GxsIdStatistics.cpp \
             gui/statistics/GlobalRouterStatistics.cpp \
             gui/statistics/GxsTransportStatistics.cpp \
+            gui/statistics/GxsNetTunnelsDialog.cpp \
             gui/statistics/StatisticsWindow.cpp \
             gui/statistics/BwCtrlWindow.cpp \
             gui/statistics/RttStatistics.cpp \
+            gui/statistics/TunnelStatisticsDialog.cpp \
             gui/statistics/BWGraph.cpp \
     util/RsSyntaxHighlighter.cpp \
     util/imageutil.cpp \
@@ -1224,7 +1230,10 @@ gxsthewire {
 		gui/TheWire/PulseReply.h \
 		gui/TheWire/PulseReplySeperator.h \
 		gui/TheWire/PulseMessage.h \
-                gui/TheWire/CustomFrame.h \
+		gui/TheWire/CustomFrame.h \
+		gui/TheWire/WireUserNotify.h \
+		gui/feeds/WireNotifyGroupItem.h \
+		gui/feeds/WireNotifyPostItem.h \
 
 	FORMS += gui/TheWire/WireDialog.ui \
 		gui/TheWire/WireGroupItem.ui \
@@ -1235,7 +1244,9 @@ gxsthewire {
 		gui/TheWire/PulseReply.ui \
 		gui/TheWire/PulseReplySeperator.ui \
 		gui/TheWire/PulseMessage.ui \
-	
+		gui/feeds/WireNotifyGroupItem.ui \
+		gui/feeds/WireNotifyPostItem.ui \
+
 	SOURCES += gui/TheWire/WireDialog.cpp \
 		gui/TheWire/WireGroupItem.cpp \
 		gui/TheWire/WireGroupDialog.cpp \
@@ -1247,7 +1258,10 @@ gxsthewire {
 		gui/TheWire/PulseReply.cpp \
 		gui/TheWire/PulseReplySeperator.cpp \
 		gui/TheWire/PulseMessage.cpp \
-                gui/TheWire/CustomFrame.cpp \
+		gui/TheWire/CustomFrame.cpp \
+		gui/TheWire/WireUserNotify.cpp \
+		gui/feeds/WireNotifyGroupItem.cpp \
+		gui/feeds/WireNotifyPostItem.cpp \
 
 	RESOURCES += gui/TheWire/TheWire_images.qrc
 }
@@ -1378,6 +1392,7 @@ posted {
 		gui/Posted/PostedListWidgetWithModel.h \
 		gui/Posted/PostedPostsModel.h \
 		gui/Posted/BoardPostDisplayWidget.h \
+		gui/Posted/BoardPostImageHelper.h \
 		gui/Posted/PostedItem.h \
 		gui/Posted/PostedCardView.h \
 		gui/Posted/PostedGroupDialog.h \
@@ -1404,6 +1419,7 @@ posted {
 	SOURCES += gui/Posted/PostedDialog.cpp \
 		gui/Posted/PostedListWidgetWithModel.cpp \
 		gui/Posted/BoardPostDisplayWidget.cpp \
+		gui/Posted/BoardPostImageHelper.cpp \
 		gui/Posted/PostedPostsModel.cpp \
 		gui/feeds/PostedGroupItem.cpp \
 		gui/Posted/PostedItem.cpp \
@@ -1441,7 +1457,7 @@ gxsgui {
 #		gui/gxs/GxsFeedWidget.h \
 		util/TokenQueue.h \
 		util/RsGxsUpdateBroadcast.h \
-	
+		gui/gxs/GxsStatisticsProvider.h \
 #		gui/gxs/GxsMsgDialog.h \
 	
 	FORMS += gui/gxs/GxsGroupDialog.ui \
@@ -1472,7 +1488,7 @@ gxsgui {
 #		gui/gxs/GxsFeedWidget.cpp \
 		util/TokenQueue.cpp \
 		util/RsGxsUpdateBroadcast.cpp \
-	
+		gui/gxs/GxsStatisticsProvider.cpp \
 #		gui/gxs/GxsMsgDialog.cpp \
 	
 	

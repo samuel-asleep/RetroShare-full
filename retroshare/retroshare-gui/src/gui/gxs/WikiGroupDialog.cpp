@@ -76,13 +76,38 @@ uint32_t WikiEditDefaultsFlags = WikiCreateDefaultsFlags;
 uint32_t WikiEditEnabledFlags = WikiCreateEnabledFlags;
 
 WikiGroupDialog::WikiGroupDialog(QWidget *parent)
-	:GxsGroupDialog(WikiCreateEnabledFlags, WikiCreateDefaultsFlags, parent)
+	:GxsGroupDialog(WikiCreateEnabledFlags, WikiCreateDefaultsFlags, parent),
+	 mEventHandlerId(0)
 {
+	// Register for Wiki events to catch moderator changes
+	RsEventType wikiEventType = (RsEventType)rsEvents->getDynamicEventType("GXS_WIKI");
+	rsEvents->registerEventsHandler(
+		[this](std::shared_ptr<const RsEvent> event) {
+			RsQThreadUtils::postToObject([=]() { 
+				handleEvent_main_thread(event); 
+			}, this );
+		},
+		mEventHandlerId, wikiEventType);
 }
 
-WikiGroupDialog::WikiGroupDialog(Mode mode, RsGxsGroupId groupId, QWidget *parent)
-:GxsGroupDialog(mode, groupId, WikiEditEnabledFlags, WikiEditDefaultsFlags, parent)
+WikiGroupDialog::WikiGroupDialog(Mode mode, const RsGxsGroupId& groupId, QWidget *parent)
+:GxsGroupDialog(mode, groupId, WikiEditEnabledFlags, WikiEditDefaultsFlags, parent),
+ mEventHandlerId(0)
 {
+	// Register for Wiki events to catch moderator changes
+	RsEventType wikiEventType = (RsEventType)rsEvents->getDynamicEventType("GXS_WIKI");
+	rsEvents->registerEventsHandler(
+		[this](std::shared_ptr<const RsEvent> event) {
+			RsQThreadUtils::postToObject([=]() { 
+				handleEvent_main_thread(event); 
+			}, this );
+		},
+		mEventHandlerId, wikiEventType);
+}
+
+WikiGroupDialog::~WikiGroupDialog()
+{
+	rsEvents->unregisterEventsHandler(mEventHandlerId);
 }
 
 void WikiGroupDialog::initUi()
@@ -105,44 +130,38 @@ void WikiGroupDialog::initUi()
 	setUiText(UITYPE_KEY_SHARE_CHECKBOX, tr("Add Wiki Moderators"));
 	setUiText(UITYPE_CONTACTS_DOCK, tr("Select Wiki Moderators"));
 
-	if (ui.addAdmins_cb)
-	{
-		ui.addAdmins_cb->hide();
-		ui.adminsList->hide();
-		ui.filtercomboBox->hide();
-	}
+	ui.addAdmins_cb->hide();
+	ui.adminsList->hide();
+	ui.filtercomboBox->hide();
 
-	if (!mModeratorsWidget)
-	{
-		mModeratorsWidget = new QWidget(this);
-		auto *layout = new QVBoxLayout(mModeratorsWidget);
+	mModeratorsWidget = new QWidget(this);
+	auto *layout = new QVBoxLayout(mModeratorsWidget);
 
-		mModeratorsGroup = new QGroupBox(tr("Moderators"), mModeratorsWidget);
-		auto *groupLayout = new QVBoxLayout(mModeratorsGroup);
+	mModeratorsGroup = new QGroupBox(tr("Moderators"), mModeratorsWidget);
+	auto *groupLayout = new QVBoxLayout(mModeratorsGroup);
 
-		mModeratorsList = new QTreeWidget(mModeratorsGroup);
-		mModeratorsList->setToolTip(tr("List of users who can moderate this wiki"));
-		mModeratorsList->setColumnCount(2);
-		mModeratorsList->setHeaderLabels({tr("Moderator"), tr("Id")});
-		mModeratorsList->setRootIsDecorated(false);
-		mModeratorsList->setSelectionMode(QAbstractItemView::SingleSelection);
-		mModeratorsList->setUniformRowHeights(true);
-		groupLayout->addWidget(mModeratorsList);
+	mModeratorsList = new QTreeWidget(mModeratorsGroup);
+	mModeratorsList->setToolTip(tr("List of users who can moderate this wiki"));
+	mModeratorsList->setColumnCount(2);
+	mModeratorsList->setHeaderLabels({tr("Moderator"), tr("Id")});
+	mModeratorsList->setRootIsDecorated(false);
+	mModeratorsList->setSelectionMode(QAbstractItemView::SingleSelection);
+	mModeratorsList->setUniformRowHeights(true);
+	groupLayout->addWidget(mModeratorsList);
 
-		auto *buttonLayout = new QHBoxLayout();
-		mAddModeratorButton = new QPushButton(tr("Add Moderator"), mModeratorsGroup);
-		mRemoveModeratorButton = new QPushButton(tr("Remove Moderator"), mModeratorsGroup);
-		buttonLayout->addWidget(mAddModeratorButton);
-		buttonLayout->addWidget(mRemoveModeratorButton);
-		buttonLayout->addStretch();
-		groupLayout->addLayout(buttonLayout);
+	auto *buttonLayout = new QHBoxLayout();
+	mAddModeratorButton = new QPushButton(tr("Add Moderator"), mModeratorsGroup);
+	mRemoveModeratorButton = new QPushButton(tr("Remove Moderator"), mModeratorsGroup);
+	buttonLayout->addWidget(mAddModeratorButton);
+	buttonLayout->addWidget(mRemoveModeratorButton);
+	buttonLayout->addStretch();
+	groupLayout->addLayout(buttonLayout);
 
-		layout->addWidget(mModeratorsGroup);
-		injectExtraWidget(mModeratorsWidget);
+	layout->addWidget(mModeratorsGroup);
+	injectExtraWidget(mModeratorsWidget);
 
-		connect(mAddModeratorButton, SIGNAL(clicked()), this, SLOT(addModerator()));
-		connect(mRemoveModeratorButton, SIGNAL(clicked()), this, SLOT(removeModerator()));
-	}
+	connect(mAddModeratorButton, SIGNAL(clicked()), this, SLOT(addModerator()));
+	connect(mRemoveModeratorButton, SIGNAL(clicked()), this, SLOT(removeModerator()));
 
 	updateModeratorControls();
 }
@@ -174,6 +193,12 @@ bool WikiGroupDialog::service_updateGroup(const RsGroupMetaData &editedMeta)
 	if (rsWiki->getCollections({editedMeta.mGroupId}, existingGroups) && !existingGroups.empty())
 	{
 		grp = existingGroups.front();
+	}
+	else
+	{
+		std::cerr << "WikiGroupDialog::service_updateGroup() Error: could not retrieve existing group data";
+		std::cerr << std::endl;
+		return false;
 	}
 
 	grp.mMeta = editedMeta;
@@ -266,23 +291,30 @@ void WikiGroupDialog::loadModerators(const RsGxsGroupId &groupId)
 void WikiGroupDialog::updateModeratorsLabel(const std::list<RsGxsId> &moderators)
 {
 	QString moderatorsListString;
-	RsIdentityDetails det;
-	RetroShareLink link;
 
 	for (const auto &moderatorId : moderators)
 	{
-		rsIdentity->getIdDetails(moderatorId, det);
+		RsIdentityDetails det;
+		RetroShareLink link;
+
+		bool haveDetails = rsIdentity->getIdDetails(moderatorId, det);
 
 		if (!moderatorsListString.isNull())
 		{
 			moderatorsListString += ", ";
 		}
 
-		const QString displayName = det.mNickname.empty()
-			? tr("[Unknown]")
-			: QString::fromUtf8(det.mNickname.c_str());
+		QString displayName;
+		if (haveDetails && !det.mNickname.empty())
+		{
+			displayName = QString::fromUtf8(det.mNickname.c_str());
+		}
+		else
+		{
+			displayName = tr("[Unknown]");
+		}
 
-		link = RetroShareLink::createMessage(det.mId, "");
+		link = RetroShareLink::createMessage(moderatorId, "");
 		if (link.valid())
 		{
 			moderatorsListString += QString("<a href=\"%1\">%2</a>")
@@ -290,7 +322,7 @@ void WikiGroupDialog::updateModeratorsLabel(const std::list<RsGxsId> &moderators
 		}
 		else
 		{
-			moderatorsListString += displayName;
+			moderatorsListString += displayName.toHtmlEscaped();
 		}
 	}
 
@@ -309,35 +341,18 @@ void WikiGroupDialog::addModeratorToList(const RsGxsId &gxsId)
 		return;
 	}
 
-	for (int i = 0; i < mModeratorsList->topLevelItemCount(); ++i)
+	// Check if ID already exists by searching column 1 (which contains the ID string)
+	// Column structure: column 0 = moderator name/avatar, column 1 = GxsId string
+	QString idString = QString::fromStdString(gxsId.toStdString());
+	QList<QTreeWidgetItem*> items = mModeratorsList->findItems(idString, Qt::MatchExactly, 1);
+	if (!items.empty())
 	{
-		QTreeWidgetItem *existingItem = mModeratorsList->topLevelItem(i);
-		if (!existingItem)
-		{
-			continue;
-		}
-
-		GxsIdRSTreeWidgetItem *gxsItem = dynamic_cast<GxsIdRSTreeWidgetItem*>(existingItem);
-		if (!gxsItem)
-		{
-			continue;
-		}
-
-		RsGxsId existingId;
-		if (!gxsItem->getId(existingId))
-		{
-			continue;
-		}
-
-		if (existingId == gxsId)
-		{
-			return;
-		}
+		return; // ID already in list
 	}
 
-	auto *item = new GxsIdRSTreeWidgetItem(nullptr, GxsIdDetails::ICON_TYPE_AVATAR, true, mModeratorsList);
+	auto *item = new GxsIdRSTreeWidgetItem(nullptr, GxsIdDetails::ICON_TYPE_AVATAR, true, nullptr);
 	item->setId(gxsId, 0, false);
-	item->setText(1, QString::fromStdString(gxsId.toStdString()));
+	item->setText(1, idString);
 	const bool isActive = rsWiki->isActiveModerator(mCurrentGroupId, gxsId, time(nullptr));
 	if (!isActive)
 	{
@@ -511,23 +526,17 @@ void WikiGroupDialog::addModerator()
 
 		RsQThreadUtils::postToObject([this, addedModerators, failedModerators]()
 		{
-			// Don't immediately update the UI here. The group update happens asynchronously
-			// in RsGenExchange, and p3wiki::notifyChanges() will send an UPDATED_COLLECTION
-			// event when the change is actually committed. The moderator list will be
-			// refreshed when you close and reopen this dialog, or automatically in WikiDialog
-			// if it's listening for the event.
+			// The group update happens asynchronously in RsGenExchange, 
+			// and p3wiki::notifyChanges() will send an UPDATED_COLLECTION
+			// event when the change is actually committed. The moderator list
+			// will be automatically refreshed via handleEvent_main_thread().
 			
-			if (!addedModerators.empty() && failedModerators.empty())
-			{
-				QMessageBox::information(this, tr("Success"),
-					tr("Moderator add request submitted. Please close and reopen this dialog to see the updated list."));
-			}
-			else if (addedModerators.empty())
+			if (addedModerators.empty())
 			{
 				QMessageBox::warning(this, tr("Error"),
 					tr("Failed to submit moderator add requests."));
 			}
-			else
+			else if (!failedModerators.empty())
 			{
 				QMessageBox::warning(this, tr("Warning"),
 					tr("Some moderator requests could not be submitted."));
@@ -575,22 +584,39 @@ void WikiGroupDialog::removeModerator()
 		const bool success = rsWiki->removeModerator(groupId, modId);
 		RsQThreadUtils::postToObject([this, success]()
 		{
-			// Don't immediately update the UI here. The group update happens asynchronously
-			// in RsGenExchange, and p3wiki::notifyChanges() will send an UPDATED_COLLECTION
-			// event when the change is actually committed. The moderator list will be
-			// refreshed when you close and reopen this dialog, or automatically in WikiDialog
-			// if it's listening for the event.
+			// The group update happens asynchronously in RsGenExchange, 
+			// and p3wiki::notifyChanges() will send an UPDATED_COLLECTION
+			// event when the change is actually committed. The moderator list
+			// will be automatically refreshed via handleEvent_main_thread().
 			
-			if (success)
-			{
-				QMessageBox::information(this, tr("Success"),
-					tr("Moderator remove request submitted. Please close and reopen this dialog to see the updated list."));
-			}
-			else
+			if (!success)
 			{
 				QMessageBox::warning(this, tr("Error"),
 					tr("Failed to submit moderator remove request."));
 			}
 		}, this);
 	});
+}
+
+void WikiGroupDialog::handleEvent_main_thread(std::shared_ptr<const RsEvent> event)
+{
+	// Cast to the specific Wiki event
+	const RsGxsWikiEvent *e = dynamic_cast<const RsGxsWikiEvent*>(event.get());
+
+	if (e)
+	{
+		// Check if the event is for the group we're currently editing
+		if (e->mWikiGroupId == mCurrentGroupId)
+		{
+			switch (e->mWikiEventCode)
+			{
+				case RsWikiEventCode::UPDATED_COLLECTION:
+					// Reload moderators when the group is updated
+					loadModerators(mCurrentGroupId);
+					break;
+				default:
+					break;
+			}
+		}
+	}
 }
