@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - RetroShare/RetroShare
-          - RetroShare/libretroshare
+          - samuel-asleep/RetroShare
+          - samuel-asleep/libretroshare
         default: RetroShare/RetroShare
       upstream_branch:
         description: "Branch to pull from upstream"
