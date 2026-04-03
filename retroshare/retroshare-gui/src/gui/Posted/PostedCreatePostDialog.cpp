@@ -18,7 +18,6 @@
  *                                                                             *
  *******************************************************************************/
 
-#include <QBuffer>
 #include <QClipboard>
 #include <QMessageBox>
 #include <QByteArray>
@@ -38,7 +37,6 @@
 
 #include "gui/settings/rsharesettings.h"
 #include "BoardPostImageHelper.h"
-#include <QBuffer>
 
 #include <iostream>
 #include <gui/RetroShareLink.h>
@@ -199,9 +197,12 @@ void PostedCreatePostDialog::createPost()
 		RsQThreadUtils::postToObject( [res, error_message, this]()
 		{
 			if(!res)
+			{
 				QMessageBox::warning(nullptr, tr("Error while saving post"),
 				                     QString("%1\n\n%2").arg(tr("An error occurred while saving the post."),
 				                                            QString::fromStdString(error_message)));
+				return;
+			}
 			accept();
 		}, this );
 	});

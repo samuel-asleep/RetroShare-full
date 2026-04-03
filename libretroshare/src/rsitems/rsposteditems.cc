@@ -21,6 +21,7 @@
  *******************************************************************************/
 #include "rsitems/rsposteditems.h"
 #include "serialiser/rstypeserializer.h"
+#include "serialiser/rstlvbase.h"
 
 
 
@@ -45,18 +46,43 @@ void RsGxsPostedPostItem::serial_process(RsGenericSerializer::SerializeJob j,RsG
 void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
 	RsTypeSerializer::serial_process(j,ctx,TLV_TYPE_STR_DESCR ,mDescription,"mDescription") ;
-	
+
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
         return ;
 
-	if( j == RsGenericSerializer::DESERIALIZE || !mGroupImage.empty() )
+	if(j == RsGenericSerializer::DESERIALIZE)
+	{
+		if(ctx.mSize >= ctx.mOffset + TLV_HEADER_SIZE)
+		{
+			const uint16_t nextTlvType = GetTlvType(
+			            &((uint8_t*)ctx.mData)[ctx.mOffset] );
+			if(nextTlvType == mGroupImage.TlvType())
+				RsTypeSerializer::serial_process<RsTlvItem>(
+				            j,ctx,mGroupImage,"mGroupImage" );
+		}
+	}
+	else if(!mGroupImage.empty())
 		RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
 
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
 		return;
 
-	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mPinnedPosts.ids.empty())
+	if(j == RsGenericSerializer::DESERIALIZE)
+	{
+		if(ctx.mSize >= ctx.mOffset + TLV_HEADER_SIZE)
+		{
+			const uint16_t nextTlvType = GetTlvType(
+			            &((uint8_t*)ctx.mData)[ctx.mOffset] );
+			if(nextTlvType == mPinnedPosts.TlvType())
+				RsTypeSerializer::serial_process<RsTlvItem>(
+				            j,ctx,mPinnedPosts,"mPinnedPosts" );
+		}
 		return;
+	}
+
+	if((j == RsGenericSerializer::SIZE_ESTIMATE
+	    || j == RsGenericSerializer::SERIALIZE)
+	        && mPinnedPosts.ids.empty()) return;
 
 	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mPinnedPosts,"mPinnedPosts") ;
 }

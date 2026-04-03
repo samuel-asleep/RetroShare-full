@@ -843,10 +843,8 @@ void PostedListWidgetWithModel::editPost()
 
     RsPostedPost post = index.data(Qt::UserRole).value<RsPostedPost>();
 
-    RsGxsId author_id;
-    ui->idChooser->getChosenId(author_id);
-
-    PostedCreatePostDialog *msgDialog = new PostedCreatePostDialog(rsPosted, groupId(), author_id);
+    PostedCreatePostDialog *msgDialog = new PostedCreatePostDialog(
+                rsPosted, groupId(), post.mMeta.mAuthorId );
     msgDialog->setTitle(QString::fromUtf8(post.mMeta.mMsgName.c_str()));
     msgDialog->setNotes(QString::fromUtf8(post.mNotes.c_str()));
     msgDialog->setLink(QString::fromUtf8(post.mLink.c_str()));
@@ -1048,4 +1046,3 @@ void PostedListWidgetWithModel::voteMsg(RsGxsGrpMsgIdPair msg,bool up_or_down)
     else
         updateDisplay(true);
 }
-
