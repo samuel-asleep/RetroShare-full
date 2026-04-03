@@ -1,0 +1,114 @@
+name: Sync from Upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_repo:
+        description: "Upstream repo to pull from (owner/repo)"
+        required: true
+        type: choice
+        options:
+          - RetroShare/RetroShare
+          - RetroShare/libretroshare
+        default: RetroShare/RetroShare
+      upstream_branch:
+        description: "Branch to pull from upstream"
+        required: true
+        default: master
+      target_folder:
+        description: "Local folder to sync into (auto-detected from repo choice, override if needed)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN || github.token }}
+
+      - name: Resolve target folder
+        id: resolve
+        run: |
+          UPSTREAM_REPO="${{ inputs.upstream_repo }}"
+          OVERRIDE="${{ inputs.target_folder }}"
+
+          if [ -n "${OVERRIDE}" ]; then
+            FOLDER="${OVERRIDE}"
+          elif [ "${UPSTREAM_REPO}" = "RetroShare/RetroShare" ]; then
+            FOLDER="retroshare"
+          elif [ "${UPSTREAM_REPO}" = "RetroShare/libretroshare" ]; then
+            FOLDER="libretroshare"
+          else
+            # Fallback: use the repo name part as folder name (lowercased)
+            FOLDER="$(echo "${UPSTREAM_REPO}" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')"
+          fi
+
+          echo "folder=${FOLDER}" >> "$GITHUB_OUTPUT"
+          echo "Resolved target folder: ${FOLDER}"
+
+      - name: Clone upstream repo
+        env:
+          UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+          UPSTREAM_BRANCH: ${{ inputs.upstream_branch }}
+        run: |
+          UPSTREAM_DIR="$(mktemp -d)"
+          echo "UPSTREAM_DIR=${UPSTREAM_DIR}" >> "$GITHUB_ENV"
+
+          echo "Cloning https://github.com/${UPSTREAM_REPO}.git (branch: ${UPSTREAM_BRANCH})"
+          git clone \
+            --depth=1 \
+            --branch "${UPSTREAM_BRANCH}" \
+            "https://github.com/${UPSTREAM_REPO}.git" \
+            "${UPSTREAM_DIR}"
+
+      - name: Sync upstream into local folder (overwrite + delete)
+        env:
+          TARGET_FOLDER: ${{ steps.resolve.outputs.folder }}
+        run: |
+          set -e
+
+          mkdir -p "${TARGET_FOLDER}"
+
+          echo "Syncing ${UPSTREAM_REPO} → ./${TARGET_FOLDER}/ (overwrite + delete untracked files)"
+
+          rsync -av --delete \
+            --exclude='/.git' \
+            --exclude='/.git/**' \
+            --exclude='/.github' \
+            --exclude='/.github/**' \
+            "${UPSTREAM_DIR}/" \
+            "./${TARGET_FOLDER}/"
+
+          echo "Sync complete."
+
+      - name: Commit and push changes
+        env:
+          TARGET_FOLDER: ${{ steps.resolve.outputs.folder }}
+          UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+          UPSTREAM_BRANCH: ${{ inputs.upstream_branch }}
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A "${TARGET_FOLDER}/"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit — ${TARGET_FOLDER}/ is already up to date with ${UPSTREAM_REPO}@${UPSTREAM_BRANCH}."
+            exit 0
+          fi
+
+          CHANGED=$(git diff --cached --stat | tail -1)
+          git commit -m "sync: update ${TARGET_FOLDER} from ${UPSTREAM_REPO}@${UPSTREAM_BRANCH}
+
+${CHANGED}"
+
+          git push origin HEAD
