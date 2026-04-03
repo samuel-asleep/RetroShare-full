@@ -49,12 +49,7 @@ void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,Rs
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
         return ;
 
-	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mGroupImage.empty())
-	{
-		if(mPinnedPosts.ids.empty())
-			return;
-	}
-	else
+	if(!((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mGroupImage.empty()))
 		RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
 
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
